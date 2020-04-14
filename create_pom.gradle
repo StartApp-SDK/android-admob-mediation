@@ -1,0 +1,42 @@
+apply plugin: 'maven'
+
+group = BINTRAY_GROUP_ID as String  // Maven Group ID for the artifact
+
+task createPom {
+    doLast {
+        pom {
+            project {
+                packaging 'aar'
+                groupId BINTRAY_GROUP_ID as String
+                artifactId archivesBaseName
+
+                name archivesBaseName
+
+                developers {
+                    developer {
+                        name BINTRAY_DEVELOPER_NAME as String
+                        email BINTRAY_DEVELOPER_EMAIL as String
+                    }
+                }
+            }.withXml {
+                def dependenciesNode = asNode().getAt('dependencies')[0] ?: asNode().appendNode('dependencies')
+                // Iterate over the implementation dependencies (we don't want the test ones), adding a <dependency> node for each
+                configurations.implementation.allDependencies.each {
+                    // Ensure dependencies such as fileTree are not included.
+                    if (it.name != 'unspecified') {
+//                        def dependencyNode = dependenciesNode.appendNode('dependency')
+//                        dependencyNode.appendNode('groupId', it.group)
+//                        dependencyNode.appendNode('artifactId', it.name)
+//                        dependencyNode.appendNode('version', it.version)
+                    }
+                }
+            }.writeTo('build/pom-default.pom')
+        }
+    }
+}
+
+tasks.whenTaskAdded {
+    if (it.name == 'assembleRelease') {
+        it.dependsOn createPom
+    }
+}
