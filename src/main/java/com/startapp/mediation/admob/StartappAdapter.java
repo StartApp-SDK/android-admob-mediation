@@ -142,9 +142,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 @Nullable Bundle customEventExtras,
                 @Nullable String serverParameter
         ) {
-            adPreferences = new AdPreferences();
-
-            fillAdPreferences(customEventExtras, serverParameter);
+            adPreferences = makeAdPreferences(customEventExtras, serverParameter, false, null);
             setKeywords(adPreferences, mediationAdRequest);
             setLocation(adPreferences, mediationAdRequest);
         }
@@ -154,27 +152,20 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 @Nullable Bundle customEventExtras,
                 @Nullable String serverParameter
         ) {
-            final NativeAdPreferences prefs = new NativeAdPreferences();
-            adPreferences = prefs;
-
-            fillAdPreferences(customEventExtras, serverParameter);
+            adPreferences = makeAdPreferences(customEventExtras, serverParameter, true, mediationAdRequest.getNativeAdOptions());
             setKeywords(adPreferences, mediationAdRequest);
             setLocation(adPreferences, mediationAdRequest);
-
-            final NativeAdOptions options = mediationAdRequest.getNativeAdOptions();
-            prefs.setAutoBitmapDownload(options != null && !options.shouldReturnUrlsForImageAssets());
         }
 
         Extras(@NonNull MediationRewardedAdConfiguration configuration) {
-            adPreferences = new AdPreferences();
-
             final Bundle serverParameters = configuration.getServerParameters();
             String serverParameter = null;
             if (serverParameters != null) {
                 serverParameter = serverParameters.getString("parameter");
             }
 
-            fillAdPreferences(configuration.getMediationExtras(), serverParameter);
+            adPreferences = makeAdPreferences(configuration.getMediationExtras(), serverParameter, false, null);
+
             if (configuration.getLocation() != null) {
                 adPreferences.setLongitude(configuration.getLocation().getLongitude());
                 adPreferences.setLatitude(configuration.getLocation().getLatitude());
@@ -203,7 +194,13 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             prefs.setLatitude(request.getLocation().getLatitude());
         }
 
-        private void fillAdPreferences(@Nullable Bundle customEventExtras, @Nullable String serverParameter) {
+        @NonNull
+        private AdPreferences makeAdPreferences(
+                @Nullable Bundle customEventExtras,
+                @Nullable String serverParameter,
+                boolean isNative,
+                @Nullable NativeAdOptions nativeAdOptions
+        ) {
             String adTag = null;
             boolean isVideoMuted = false;
             Double minCPM = null;
@@ -303,22 +300,35 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 }
             }
 
-            adPreferences.setAdTag(adTag);
-            adPreferences.setMinCpm(minCPM);
-
-            if (isVideoMuted) {
-                adPreferences.muteVideo();
+            NativeAdPreferences nativeAdPrefs = null;
+            AdPreferences prefs;
+            if (isNative) {
+                nativeAdPrefs = new NativeAdPreferences();
+                prefs = nativeAdPrefs;
+            } else {
+                prefs = new AdPreferences();
             }
 
-            if (adPreferences instanceof NativeAdPreferences) {
+            prefs.setAdTag(adTag);
+            prefs.setMinCpm(minCPM);
+
+            if (isVideoMuted) {
+                prefs.muteVideo();
+            }
+
+            if (isNative) {
                 if (nativeImageSize != null) {
-                    ((NativeAdPreferences) adPreferences).setPrimaryImageSize(nativeImageSize.ordinal());
+                    nativeAdPrefs.setPrimaryImageSize(nativeImageSize.ordinal());
                 }
 
                 if (nativeSecondaryImageSize != null) {
-                    ((NativeAdPreferences) adPreferences).setSecondaryImageSize(nativeSecondaryImageSize.ordinal());
+                    nativeAdPrefs.setSecondaryImageSize(nativeSecondaryImageSize.ordinal());
                 }
+
+                nativeAdPrefs.setAutoBitmapDownload(nativeAdOptions != null && !nativeAdOptions.shouldReturnUrlsForImageAssets());
             }
+
+            return prefs;
         }
 
         public static class Builder {
@@ -402,16 +412,12 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         interstitial = new StartAppAd(context);
         final AdEventListener loadListener = new AdEventListener() {
             @Override
-            public void onReceiveAd(Ad ad) {
+            public void onReceiveAd(@NonNull Ad ad) {
                 listener.onAdLoaded();
             }
 
             @Override
-            public void onFailedToReceiveAd(Ad ad) {
-                if (ad == null) {
-                    return;
-                }
-
+            public void onFailedToReceiveAd(@NonNull Ad ad) {
                 final String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
 
