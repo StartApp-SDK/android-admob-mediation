@@ -803,7 +803,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 @NonNull Map<String, View> clickableAssetViews,
                 @NonNull Map<String, View> nonclickableAssetViews
         ) {
-            details.registerViewForInteraction(containerView, null, new NativeAdDisplayListener() {
+            final List<View> clickableViews = new ArrayList<>(clickableAssetViews.values());
+
+            details.registerViewForInteraction(containerView, clickableViews, new NativeAdDisplayListener() {
                 @Override
                 public void adHidden(@NonNull NativeAdInterface nativeAdInterface) {
                     final CustomEventNativeListener callbacks = listener.get();
