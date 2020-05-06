@@ -54,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
     private AdView banner;
 
     @Nullable
+    private AdView mrec;
+
+    @Nullable
     private InterstitialAd interstitial;
 
     @Nullable
@@ -74,8 +77,13 @@ public class MainActivity extends AppCompatActivity {
         StartAppSDK.init(this, "204653131", false);
         StartAppAd.disableSplash();
 
+        // DON'T ADD THIS LINE TO YOUR REAL PROJECT, IT ENABLES TEST ADS WHICH GIVE NO REVENUE
+        StartAppSDK.setTestAdsEnabled(true);
+        // -----------------------------------------------------------------------------------
+
         initInterstitial();
         initBanner();
+        initMrec();
     }
 
     private void initBanner() {
@@ -104,6 +112,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdLoaded() {
                 Toast.makeText(MainActivity.this, "Banner - onAdLoaded", Toast.LENGTH_SHORT).show();
+
+                if (mrec != null && mrec.getVisibility() == View.VISIBLE) {
+                    mrec.setVisibility(View.GONE);
+                }
+
+                banner.setVisibility(View.VISIBLE);
             }
 
             @Override
@@ -129,6 +143,67 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdLeftApplication() {
                 Toast.makeText(MainActivity.this, "Banner - onAdLeftApplication", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void initMrec() {
+        final ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        mrec = new AdView(this);
+        mrec.setAdUnitId(getString(R.string.mrecId));
+        mrec.setAdSize(AdSize.MEDIUM_RECTANGLE);
+        mrec.setId(ViewCompat.generateViewId());
+        binding.layout.addView(mrec, params);
+
+        final ConstraintSet constraints = new ConstraintSet();
+        constraints.clone(binding.layout);
+        constraints.connect(mrec.getId(), ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM);
+        constraints.centerHorizontally(mrec.getId(), ConstraintSet.PARENT_ID);
+        constraints.applyTo(binding.layout);
+
+        mrec.setAdListener(new AdListener() {
+            @Override
+            public void onAdFailedToLoad(int errorCode) {
+                Toast.makeText(MainActivity.this, "Mrec load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdLoaded() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdLoaded", Toast.LENGTH_SHORT).show();
+
+                if (banner != null && banner.getVisibility() == View.VISIBLE) {
+                    banner.setVisibility(View.GONE);
+                }
+
+                mrec.setVisibility(View.VISIBLE);
+            }
+
+            @Override
+            public void onAdOpened() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdOpened", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdClosed() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdClosed", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdClicked() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdClicked", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdImpression() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdImpression", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdLeftApplication() {
+                Toast.makeText(MainActivity.this, "Mrec - onAdLeftApplication", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -227,6 +302,29 @@ public class MainActivity extends AppCompatActivity {
                 .toBundle();
 
         banner.loadAd(new AdRequest.Builder()
+                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .build());
+    }
+
+    /**
+     * you can as well write in admob custom event's panel optional parameter
+     * which must be in json format, unused fields can be omitted:
+     * {adTag:'mrecTagFromServer', minCPM:0.03, is3DBanner:false}
+     * each value from the admob panel overrides corresponding value from extras bundle
+     */
+    public void onClickLoadMrec(@NonNull View view) {
+        if (mrec == null) {
+            return;
+        }
+
+        // optionally you can set additional parameters for Startapp banner
+        final Bundle extras = new StartappAdapter.Extras.Builder()
+                .setAdTag("mrecTagFromAdRequest")
+                .enable3DBanner()
+                .setMinCPM(0.01)
+                .toBundle();
+
+        mrec.loadAd(new AdRequest.Builder()
                 .addCustomEventExtrasBundle(StartappAdapter.class, extras)
                 .build());
     }
