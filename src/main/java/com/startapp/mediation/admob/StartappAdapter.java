@@ -30,6 +30,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.Keep;
@@ -88,6 +89,21 @@ import java.util.Map;
 @Keep
 public class StartappAdapter extends Adapter implements CustomEventInterstitial, CustomEventBanner, MediationRewardedAd, CustomEventNative {
     private static final String LOG_TAG = StartappAdapter.class.getSimpleName();
+
+    // region Lifecycle
+    @Override
+    public void onDestroy() {
+        removeFromParent(bannerContainer);
+    }
+
+    @Override
+    public void onPause() {
+    }
+
+    @Override
+    public void onResume() {
+    }
+    // endregion
 
     //region Extras
     public enum Mode {
@@ -389,6 +405,16 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     private static void setWrapperInfo(@NonNull Context context) {
         StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
     }
+
+    private static void removeFromParent(@Nullable View view) {
+        if (view == null || view.getParent() == null) {
+            return;
+        }
+
+        if (view.getParent() instanceof ViewGroup) {
+            ((ViewGroup) view.getParent()).removeView(view);
+        }
+    }
     //endregion
 
     //region Interstitial
@@ -476,21 +502,12 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             }
         });
     }
-
-    @Override
-    public void onDestroy() {
-    }
-
-    @Override
-    public void onPause() {
-    }
-
-    @Override
-    public void onResume() {
-    }
     //endregion
 
     //region Banner
+    @Nullable
+    private FrameLayout bannerContainer;
+
     @Override
     public void requestBannerAd(
             @NonNull Context context,
@@ -504,11 +521,11 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             return;
         }
 
-        final FrameLayout layout = new FrameLayout(context);
+        bannerContainer = new FrameLayout(context);
         final BannerListener loadListener = new BannerListener() {
             @Override
             public void onReceiveAd(View view) {
-                listener.onAdLoaded(layout);
+                listener.onAdLoaded(bannerContainer);
             }
 
             @Override
@@ -530,11 +547,11 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
         final BannerBase banner = loadBanner(context, serverParameter, adSize, mediationAdRequest, customEventExtras, loadListener);
         // force banner to calculate its view size
-        layout.setLayoutParams(new FrameLayout.LayoutParams(
+        bannerContainer.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
-        layout.addView(banner, new FrameLayout.LayoutParams(
+        bannerContainer.addView(banner, new FrameLayout.LayoutParams(
                 adSize.getWidthInPixels(context),
                 adSize.getHeightInPixels(context),
                 Gravity.CENTER));
@@ -554,7 +571,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         final Activity activity = (Activity) context;
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        BannerBase result;
+        final BannerBase result;
         if (adSize.equals(AdSize.MEDIUM_RECTANGLE)) {
             result = new Mrec(activity, extras.getAdPreferences(), loadListener);
         } else if (extras.is3DBanner()) {
