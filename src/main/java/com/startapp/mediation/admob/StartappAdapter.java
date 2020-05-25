@@ -800,8 +800,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             if (details.getSecondaryImageUrl() != null) {
                 final Uri uri = Uri.parse(details.getSecondaryImageUrl());
                 if (uri != null) {
-                    images.add(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
-                    setIcon(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
+                    final MappedImage icon = new MappedImage(context, uri, details.getSecondaryImageBitmap());
+                    images.add(icon);
+                    setIcon(icon);
                 }
             }
 
