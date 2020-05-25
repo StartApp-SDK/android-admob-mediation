@@ -524,21 +524,21 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         bannerContainer = new FrameLayout(context);
         final BannerListener loadListener = new BannerListener() {
             @Override
-            public void onReceiveAd(View view) {
+            public void onReceiveAd(@NonNull View view) {
                 listener.onAdLoaded(bannerContainer);
             }
 
             @Override
-            public void onFailedToReceiveAd(View view) {
+            public void onFailedToReceiveAd(@NonNull View view) {
                 listener.onAdFailedToLoad(AdRequest.ERROR_CODE_NO_FILL);
             }
 
             @Override
-            public void onImpression(View view) {
+            public void onImpression(@NonNull View view) {
             }
 
             @Override
-            public void onClick(View view) {
+            public void onClick(@NonNull View view) {
                 listener.onAdClicked();
                 listener.onAdOpened();
                 listener.onAdLeftApplication();
@@ -652,16 +652,12 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
         final AdEventListener loadListener = new AdEventListener() {
             @Override
-            public void onReceiveAd(Ad ad) {
+            public void onReceiveAd(@NonNull Ad ad) {
                 rewardedListener = loadCallback.onSuccess(StartappAdapter.this);
             }
 
             @Override
-            public void onFailedToReceiveAd(Ad ad) {
-                if (ad == null) {
-                    return;
-                }
-
+            public void onFailedToReceiveAd(@NonNull Ad ad) {
                 final String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
 
@@ -742,7 +738,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
         startappAds.loadAd((NativeAdPreferences) extras.getAdPreferences(), new AdEventListener() {
             @Override
-            public void onReceiveAd(Ad ad) {
+            public void onReceiveAd(@NonNull Ad ad) {
                 final ArrayList<NativeAdDetails> ads = startappAds.getNativeAds();
                 if (ads != null && !ads.isEmpty()) {
                     listener.onAdLoaded(new NativeMapper(context, ads.get(0), listener));
@@ -753,7 +749,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             }
 
             @Override
-            public void onFailedToReceiveAd(Ad ad) {
+            public void onFailedToReceiveAd(@NonNull Ad ad) {
                 final String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
 
@@ -793,22 +789,25 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             setStarRating((double) details.getRating());
 
             final ArrayList<NativeAd.Image> images = new ArrayList<>(2);
-            if (details.getSecondaryImageUrl() != null) {
-                final Uri uri = Uri.parse(details.getSecondaryImageUrl());
-                if (uri != null) {
-                    images.add(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
-                }
-            }
 
             if (details.getImageUrl() != null) {
                 final Uri uri = Uri.parse(details.getImageUrl());
                 if (uri != null) {
                     images.add(new MappedImage(context, uri, details.getImageBitmap()));
-                    setIcon(new MappedImage(context, uri, details.getImageBitmap()));
                 }
             }
 
-            setImages(images);
+            if (details.getSecondaryImageUrl() != null) {
+                final Uri uri = Uri.parse(details.getSecondaryImageUrl());
+                if (uri != null) {
+                    images.add(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
+                    setIcon(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
+                }
+            }
+
+            if (!images.isEmpty()) {
+                setImages(images);
+            }
 
             setOverrideClickHandling(true);
             setOverrideImpressionRecording(true);
