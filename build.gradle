@@ -8,8 +8,10 @@ buildscript {
         
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.6.2'
+        classpath 'com.android.tools.build:gradle:3.6.3'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
     }
 }
 
@@ -17,7 +19,6 @@ allprojects {
     repositories {
         google()
         jcenter()
-        
     }
 }
 
@@ -49,11 +50,13 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation "com.google.android.gms:play-services-ads:19.0.1"
-    implementation 'com.startapp:inapp-sdk:4.5.0'
+
+    implementation "com.google.android.gms:play-services-ads:19.1.0"
+    implementation 'com.startapp:inapp-sdk:4.+'
+    //implementation project(path: ':inapp-sdk')
 
     implementation 'androidx.appcompat:appcompat:1.1.0'
-    testImplementation 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.13'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 }

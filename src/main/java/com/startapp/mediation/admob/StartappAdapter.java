@@ -27,6 +27,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -85,6 +86,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Keep
 public class StartappAdapter extends Adapter implements CustomEventInterstitial, CustomEventBanner, MediationRewardedAd, CustomEventNative {
@@ -130,6 +132,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         private static final String IS_3D_BANNER = "is3DBanner";
         private static final String NATIVE_IMAGE_SIZE = "nativeImageSize";
         private static final String NATIVE_SECONDARY_IMAGE_SIZE = "nativeSecondaryImageSize";
+        private static final String APP_ID = "startappAppId";
 
         @NonNull
         private final AdPreferences adPreferences;
@@ -151,6 +154,14 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         @Nullable
         StartAppAd.AdMode getAdMode() {
             return adMode;
+        }
+
+        @Nullable
+        private String appId;
+
+        @Nullable
+        public String getAppId() {
+            return appId;
         }
 
         Extras(
@@ -195,7 +206,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
             final StringBuilder sb = new StringBuilder();
             for (String keyWord : request.getKeywords()) {
-                sb.append(keyWord + ",");
+                sb.append(keyWord).append(",");
             }
 
             prefs.setKeywords(sb.substring(0, sb.length() - 1));
@@ -311,6 +322,10 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                                 break;
                         }
                     }
+
+                    if (json.has(APP_ID)) {
+                        appId = json.getString(APP_ID);
+                    }
                 } catch (JSONException e) {
                     Log.e(LOG_TAG, "Could not parse malformed JSON: " + serverParameter);
                 }
@@ -402,8 +417,22 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     //endregion
 
     //region Utils
-    private static void setWrapperInfo(@NonNull Context context) {
-        StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
+    private static AtomicBoolean sIsInitialized = new AtomicBoolean(false);
+
+    public static boolean initializeSdkIfNeeded(@NonNull Context context, @Nullable String appId) {
+        if (TextUtils.isEmpty(appId)) {
+            return false;
+        }
+
+        if (!sIsInitialized.getAndSet(true)) {
+            StartAppSDK.init(context, appId, false);
+            StartAppAd.disableSplash();
+            StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
+
+            return true;
+        }
+
+        return false;
     }
 
     private static void removeFromParent(@Nullable View view) {
@@ -432,7 +461,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @NonNull MediationAdRequest mediationAdRequest,
             @Nullable Bundle customEventExtras
     ) {
-        setWrapperInfo(context);
+        final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
+
+        initializeSdkIfNeeded(context, extras.getAppId());
 
         interstitialListener = listener;
         interstitial = new StartAppAd(context);
@@ -452,8 +483,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                         : AdRequest.ERROR_CODE_INTERNAL_ERROR);
             }
         };
-
-        final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
         if (extras.getAdMode() == null) {
             interstitial.loadAd(extras.getAdPreferences(), loadListener);
@@ -566,12 +595,13 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @Nullable Bundle customEventExtras,
             @NonNull BannerListener loadListener
     ) {
-        setWrapperInfo(context);
-
-        final Activity activity = (Activity) context;
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
+        initializeSdkIfNeeded(context, extras.getAppId());
+
+        final Activity activity = (Activity) context;
         final BannerBase result;
+
         if (adSize.equals(AdSize.MEDIUM_RECTANGLE)) {
             result = new Mrec(activity, extras.getAdPreferences(), loadListener);
         } else if (extras.is3DBanner()) {
@@ -604,27 +634,31 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     @Override
     @Nullable
     public VersionInfo getVersionInfo() {
-        return getStartappVersion();
+        final String[] parts = BuildConfig.VERSION_NAME.split("\\.");
+        if (parts.length < 3) {
+            return null;
+        }
+
+        try {
+            return new VersionInfo(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
     @Nullable
     public VersionInfo getSDKVersionInfo() {
-        return getStartappVersion();
-    }
-
-    @Nullable
-    private VersionInfo getStartappVersion() {
-        final String version = GeneratedConstants.INAPP_VERSION;
-        final String[] splits = version.split("\\.");
-        if (splits.length < 3) {
+        final String[] parts = GeneratedConstants.INAPP_VERSION.split("\\.");
+        if (parts.length < 3) {
             return null;
         }
 
-        final int major = Integer.parseInt(splits[0]);
-        final int minor = Integer.parseInt(splits[1]);
-        final int micro = Integer.parseInt(splits[2]);
-        return new VersionInfo(major, minor, micro);
+        try {
+            return new VersionInfo(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -637,7 +671,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             return;
         }
 
-        setWrapperInfo(context);
+        final Extras extras = new Extras(adConfiguration);
+
+        initializeSdkIfNeeded(context, extras.getAppId());
 
         rewarded = new StartAppAd(context);
         rewarded.setVideoListener(new VideoListener() {
@@ -665,7 +701,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             }
         };
 
-        final Extras extras = new Extras(adConfiguration);
         rewarded.loadAd(StartAppAd.AdMode.REWARDED_VIDEO, extras.getAdPreferences(), loadListener);
     }
 
@@ -731,17 +766,19 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @NonNull NativeMediationAdRequest mediationAdRequest,
             @Nullable Bundle customEventExtras
     ) {
-        setWrapperInfo(context);
-
-        final StartAppNativeAd startappAds = new StartAppNativeAd(context);
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        startappAds.loadAd((NativeAdPreferences) extras.getAdPreferences(), new AdEventListener() {
+        initializeSdkIfNeeded(context, extras.getAppId());
+
+        final StartAppNativeAd startappAds = new StartAppNativeAd(context);
+        final NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
+
+        startappAds.loadAd(prefs, new AdEventListener() {
             @Override
             public void onReceiveAd(@NonNull Ad ad) {
                 final ArrayList<NativeAdDetails> ads = startappAds.getNativeAds();
                 if (ads != null && !ads.isEmpty()) {
-                    listener.onAdLoaded(new NativeMapper(context, ads.get(0), listener));
+                    listener.onAdLoaded(new NativeMapper(context, ads.get(0), prefs.isContentAd(), listener));
                 } else {
                     Log.v(LOG_TAG, "ad loading failed: no fill");
                     listener.onAdFailedToLoad(AdRequest.ERROR_CODE_NO_FILL);
@@ -778,7 +815,12 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         @NonNull
         private final WeakReference<CustomEventNativeListener> listener;
 
-        public NativeMapper(@NonNull Context context, @NonNull NativeAdDetails details, @NonNull CustomEventNativeListener listener) {
+        NativeMapper(
+                @NonNull Context context,
+                @NonNull NativeAdDetails details,
+                boolean isContentAd,
+                @NonNull CustomEventNativeListener listener
+        ) {
             this.details = details;
             this.listener = new WeakReference<>(listener);
 
@@ -788,26 +830,28 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             setCallToAction(mapCallToAction(details.getCampaignAction()));
             setStarRating((double) details.getRating());
 
-            final ArrayList<NativeAd.Image> images = new ArrayList<>(2);
+            if (!isContentAd) {
+                final List<NativeAd.Image> images = new ArrayList<>(2);
 
-            if (details.getImageUrl() != null) {
-                final Uri uri = Uri.parse(details.getImageUrl());
-                if (uri != null) {
-                    images.add(new MappedImage(context, uri, details.getImageBitmap()));
+                if (!TextUtils.isEmpty(details.getImageUrl())) {
+                    final Uri uri = Uri.parse(details.getImageUrl());
+                    if (uri != null) {
+                        images.add(new MappedImage(context, uri, details.getImageBitmap()));
+                    }
                 }
-            }
 
-            if (details.getSecondaryImageUrl() != null) {
-                final Uri uri = Uri.parse(details.getSecondaryImageUrl());
-                if (uri != null) {
-                    final MappedImage icon = new MappedImage(context, uri, details.getSecondaryImageBitmap());
-                    images.add(icon);
-                    setIcon(icon);
+                if (!TextUtils.isEmpty(details.getSecondaryImageUrl())) {
+                    final Uri uri = Uri.parse(details.getSecondaryImageUrl());
+                    if (uri != null) {
+                        final MappedImage icon = new MappedImage(context, uri, details.getSecondaryImageBitmap());
+                        images.add(icon);
+                        setIcon(icon);
+                    }
                 }
-            }
 
-            if (!images.isEmpty()) {
-                setImages(images);
+                if (!images.isEmpty()) {
+                    setImages(images);
+                }
             }
 
             setOverrideClickHandling(true);
