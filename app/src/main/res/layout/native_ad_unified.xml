@@ -16,14 +16,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="*Call 2 Action*" />
+            android:text="%Call 2 Action%" />
 
         <TextView
             android:id="@+id/headline_text_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:text="*headline*"
+            android:text="%headline%"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
         <LinearLayout
@@ -38,7 +38,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginRight="10dp"
-                android:text="*Store*" />
+                android:text="%Store%" />
 
             <TextView
                 android:id="@+id/rating_text_view"
@@ -46,7 +46,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginRight="10dp"
-                android:text="*Rating*" />
+                android:text="%Rating%" />
 
             <TextView
                 android:id="@+id/price_text_view"
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginRight="10dp"
-                android:text="*Price*" />
+                android:text="%Price%" />
 
             <TextView
                 android:id="@+id/advertiser_text_view"
@@ -62,7 +62,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:layout_marginRight="10dp"
-                android:text="*Advertisier*"
+                android:text="%Advertisier%"
                 android:textStyle="bold" />
 
             <ImageView
@@ -71,7 +71,7 @@
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
                 android:maxHeight="50dp"
-                app:srcCompat="@drawable/ic_launcher_background" />
+                app:srcCompat="@android:mipmap/sym_def_app_icon" />
 
         </LinearLayout>
 
@@ -86,7 +86,7 @@
                 android:layout_height="wrap_content"
                 android:adjustViewBounds="true"
                 android:maxHeight="50dp"
-                app:srcCompat="@drawable/ic_launcher_background" />
+                app:srcCompat="@android:mipmap/sym_def_app_icon" />
 
             <com.google.android.gms.ads.formats.MediaView
                 android:id="@+id/media_view"
@@ -101,7 +101,7 @@
             android:id="@+id/body_text_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="*Body*" />
+            android:text="%Body%" />
 
     </LinearLayout>
 

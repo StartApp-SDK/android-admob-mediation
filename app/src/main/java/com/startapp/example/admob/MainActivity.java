@@ -43,39 +43,23 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.startapp.example.admob.databinding.ActivityMainBinding;
 import com.startapp.example.admob.databinding.NativeAdUnifiedBinding;
 import com.startapp.mediation.admob.StartappAdapter;
-import com.startapp.sdk.adsbase.StartAppAd;
 import com.startapp.sdk.adsbase.StartAppSDK;
 
 import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
-    @Nullable
-    private AdView banner;
-
-    @Nullable
-    private AdView mrec;
-
-    @Nullable
-    private InterstitialAd interstitial;
-
-    @Nullable
-    private RewardedAd rewarded;
-
-    @Nullable
-    private UnifiedNativeAd nativeAd;
-
-    @NonNull
-    private ActivityMainBinding binding;
+    private ActivityMainBinding viewBinding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        viewBinding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(viewBinding.getRoot());
 
-        StartAppSDK.init(this, "204653131", false);
-        StartAppAd.disableSplash();
+        // You can initialize the startapp sdk here, but prefer to do that from the admob network custom event interface
+        // Example: {startappAppId:'your_app_id_from_portal'}
+        // StartappAdapter.initializeSdkIfNeeded(this, "204653131");
 
         // DON'T ADD THIS LINE TO YOUR REAL PROJECT, IT ENABLES TEST ADS WHICH GIVE NO REVENUE
         StartAppSDK.setTestAdsEnabled(true);
@@ -86,6 +70,10 @@ public class MainActivity extends AppCompatActivity {
         initMrec();
     }
 
+    //region Banner
+    @Nullable
+    private AdView banner;
+
     private void initBanner() {
         final ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -95,13 +83,13 @@ public class MainActivity extends AppCompatActivity {
         banner.setAdUnitId(getString(R.string.bannerId));
         banner.setAdSize(AdSize.BANNER);
         banner.setId(ViewCompat.generateViewId());
-        binding.layout.addView(banner, params);
+        viewBinding.layout.addView(banner, params);
 
         final ConstraintSet constraints = new ConstraintSet();
-        constraints.clone(binding.layout);
+        constraints.clone(viewBinding.layout);
         constraints.connect(banner.getId(), ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM);
         constraints.centerHorizontally(banner.getId(), ConstraintSet.PARENT_ID);
-        constraints.applyTo(binding.layout);
+        constraints.applyTo(viewBinding.layout);
 
         banner.setAdListener(new AdListener() {
             @Override
@@ -145,7 +133,38 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Banner - onAdLeftApplication", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // prevent navite ad view covering
+        banner.setVisibility(View.GONE);
     }
+
+    /**
+     * you can as well write to admob network custom event interface optional parameter
+     * which must be in json format, unused fields can be omitted:
+     * {startappAppId:'204653131', adTag:'bannerTagFromServer', minCPM:0.02, is3DBanner:false}
+     * each value from the admob interface overrides corresponding value from the extras bundle
+     */
+    public void onClickLoadBanner(@NonNull View view) {
+        if (banner == null) {
+            return;
+        }
+
+        // optionally you can set additional parameters for Startapp banner
+        final Bundle extras = new StartappAdapter.Extras.Builder()
+                .setAdTag("bannerTagFromAdRequest")
+                .enable3DBanner()
+                .setMinCPM(0.01)
+                .toBundle();
+
+        banner.loadAd(new AdRequest.Builder()
+                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .build());
+    }
+    //endregion
+
+    //region Medium Rectangle
+    @Nullable
+    private AdView mrec;
 
     private void initMrec() {
         final ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(
@@ -156,13 +175,13 @@ public class MainActivity extends AppCompatActivity {
         mrec.setAdUnitId(getString(R.string.mrecId));
         mrec.setAdSize(AdSize.MEDIUM_RECTANGLE);
         mrec.setId(ViewCompat.generateViewId());
-        binding.layout.addView(mrec, params);
+        viewBinding.layout.addView(mrec, params);
 
         final ConstraintSet constraints = new ConstraintSet();
-        constraints.clone(binding.layout);
+        constraints.clone(viewBinding.layout);
         constraints.connect(mrec.getId(), ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM);
         constraints.centerHorizontally(mrec.getId(), ConstraintSet.PARENT_ID);
-        constraints.applyTo(binding.layout);
+        constraints.applyTo(viewBinding.layout);
 
         mrec.setAdListener(new AdListener() {
             @Override
@@ -206,7 +225,38 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Mrec - onAdLeftApplication", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // prevent navite ad view covering
+        mrec.setVisibility(View.GONE);
     }
+
+    /**
+     * you can as well write to admob network custom event interface optional parameter
+     * which must be in json format, unused fields can be omitted:
+     * {startappAppId:'204653131', adTag:'mrecTagFromServer', minCPM:0.02, is3DBanner:false}
+     * each value from the admob interface overrides corresponding value from the extras bundle
+     */
+    public void onClickLoadMrec(@NonNull View view) {
+        if (mrec == null) {
+            return;
+        }
+
+        // optionally you can set additional parameters for Startapp banner
+        final Bundle extras = new StartappAdapter.Extras.Builder()
+                .setAdTag("mrecTagFromAdRequest")
+                .enable3DBanner()
+                .setMinCPM(0.01)
+                .toBundle();
+
+        mrec.loadAd(new AdRequest.Builder()
+                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .build());
+    }
+    //endregion
+
+    //region Interstitial
+    @Nullable
+    private InterstitialAd interstitial;
 
     private void initInterstitial() {
         interstitial = new InterstitialAd(this);
@@ -219,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onAdLoaded() {
-                binding.interstitialShowButton.setEnabled(true);
+                viewBinding.interstitialShowButton.setEnabled(true);
             }
 
             @Override
@@ -250,27 +300,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * you can as well write in admob custom event's panel optional parameter
-     * which must be in json format, unused fields can be omitted:
-     * {adTag:'interstitialTagFromServer', interstitialMode:'OVERLAY', minCPM:0.02, muteVideo:false}
-     * each value from the admob panel overrides corresponding value from extras bundle
+     * you can as well write to admob network custom event interface optional parameter
+     * which must be in json format, unused by you fields can be omitted:
+     * {startappAppId:'204653131', adTag:'interstitialTagFromServer', interstitialMode:'OVERLAY', minCPM:0.02, muteVideo:false}
+     * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadInterstitial(@NonNull View view) {
-       if (interstitial == null) {
-           return;
-       }
+        if (interstitial == null) {
+            return;
+        }
 
-       // optionally you can set additional parameters for Startapp interstitial
-       final Bundle extras = new StartappAdapter.Extras.Builder()
-               .setAdTag("interstitialTagFromAdRequest")
-               .setInterstitialMode(StartappAdapter.Mode.OFFERWALL)
-               .muteVideo()
-               .setMinCPM(0.01)
-               .toBundle();
+        // optionally you can set additional parameters for Startapp interstitial
+        final Bundle extras = new StartappAdapter.Extras.Builder()
+                .setAdTag("interstitialTagFromAdRequest")
+                .setInterstitialMode(StartappAdapter.Mode.OFFERWALL)
+                .muteVideo()
+                .setMinCPM(0.01)
+                .toBundle();
 
-       interstitial.loadAd(new AdRequest.Builder()
-               .addCustomEventExtrasBundle(StartappAdapter.class, extras)
-               .build());
+        interstitial.loadAd(new AdRequest.Builder()
+                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .build());
     }
 
     public void onClickShowInterstitial(@NonNull View view) {
@@ -282,58 +332,17 @@ public class MainActivity extends AppCompatActivity {
 
         interstitial.show();
     }
+    //endregion
+
+    //region Rewarded
+    @Nullable
+    private RewardedAd rewarded;
 
     /**
-     * you can as well write in admob custom event's panel optional parameter
-     * which must be in json format, unused fields can be omitted:
-     * {adTag:'bannerTagFromServer', minCPM:0.02, is3DBanner:false}
-     * each value from the admob panel overrides corresponding value from extras bundle
-     */
-    public void onClickLoadBanner(@NonNull View view) {
-        if (banner == null) {
-            return;
-        }
-
-        // optionally you can set additional parameters for Startapp banner
-        final Bundle extras = new StartappAdapter.Extras.Builder()
-                .setAdTag("bannerTagFromAdRequest")
-                .enable3DBanner()
-                .setMinCPM(0.01)
-                .toBundle();
-
-        banner.loadAd(new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
-                .build());
-    }
-
-    /**
-     * you can as well write in admob custom event's panel optional parameter
-     * which must be in json format, unused fields can be omitted:
-     * {adTag:'mrecTagFromServer', minCPM:0.03, is3DBanner:false}
-     * each value from the admob panel overrides corresponding value from extras bundle
-     */
-    public void onClickLoadMrec(@NonNull View view) {
-        if (mrec == null) {
-            return;
-        }
-
-        // optionally you can set additional parameters for Startapp banner
-        final Bundle extras = new StartappAdapter.Extras.Builder()
-                .setAdTag("mrecTagFromAdRequest")
-                .enable3DBanner()
-                .setMinCPM(0.01)
-                .toBundle();
-
-        mrec.loadAd(new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
-                .build());
-    }
-
-    /**
-     * you can as well write in admob custom event's panel optional parameter
-     * which must be in json format, unused fields can be omitted:
-     * {adTag:'rewardedTagFromServer', minCPM:0.02, muteVideo:false}
-     * each value from the admob panel overrides corresponding value from extras bundle
+     * you can as well write to admob network custom event interface optional parameter
+     * which must be in json format, unused by you fields can be omitted:
+     * {startappAppId:'204653131', adTag:'rewardedTagFromServer', minCPM:0.02, muteVideo:false}
+     * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadRewarded(@NonNull View view) {
         //RewardedAd is a one-time-use object, so it should be recreated on every new load
@@ -349,12 +358,12 @@ public class MainActivity extends AppCompatActivity {
         final RewardedAdLoadCallback loadCallback = new RewardedAdLoadCallback() {
             @Override
             public void onRewardedAdLoaded() {
-                binding.rewardedShowButton.setEnabled(true);
+                viewBinding.rewardedShowButton.setEnabled(true);
             }
 
             @Override
             public void onRewardedAdFailedToLoad(int errorCode) {
-                binding.rewardedShowButton.setEnabled(false);
+                viewBinding.rewardedShowButton.setEnabled(false);
 
                 Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
             }
@@ -394,26 +403,34 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+    //endregion
+
+    //region Native
+    @Nullable
+    private UnifiedNativeAd nativeAd;
 
     /**
-     * you can as well write in admob custom event's panel optional parameter
+     * you can as well write to admob network custom event interface optional parameter
      * which must be in json format, unused fields can be omitted:
-     * {adTag:'nativeTagFromServer', minCPM:0.02, nativeImageSize:'SIZE150X150', nativeSecondaryImageSize:'SIZE340X340'}
-     * each value from the admob panel overrides corresponding value from extras bundle
+     * {startappAppId:'204653131', adTag:'nativeTagFromServer', minCPM:0.02, nativeImageSize:'SIZE340X340', nativeSecondaryImageSize:'SIZE72X72'}
+     * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadNative(@NonNull View view) {
+        // clear previous ad
+        viewBinding.nativeAdPlaceholder.removeAllViews();
+
         final AdLoader loader = new AdLoader.Builder(this, getString(R.string.nativeId))
                 .forUnifiedNativeAd(new UnifiedNativeAd.OnUnifiedNativeAdLoadedListener() {
                     @Override
                     public void onUnifiedNativeAdLoaded(@NonNull UnifiedNativeAd unifiedNativeAd) {
                         nativeAd = unifiedNativeAd;
-                        binding.nativeShowButton.setEnabled(true);
+                        viewBinding.nativeShowButton.setEnabled(true);
                     }
                 })
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(int errorCode) {
-                        binding.nativeShowButton.setEnabled(false);
+                        viewBinding.nativeShowButton.setEnabled(false);
 
                         Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
                     }
@@ -449,8 +466,8 @@ public class MainActivity extends AppCompatActivity {
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("nativeTagFromAdRequest")
                 .setMinCPM(0.01)
-                .setNativeImageSize(StartappAdapter.Size.SIZE72X72)
-                .setNativeSecondaryImageSize(StartappAdapter.Size.SIZE150X150)
+                .setNativeImageSize(StartappAdapter.Size.SIZE150X150)
+                .setNativeSecondaryImageSize(StartappAdapter.Size.SIZE100X100)
                 .toBundle();
 
         loader.loadAd(new AdRequest.Builder()
@@ -462,8 +479,7 @@ public class MainActivity extends AppCompatActivity {
         final NativeAdUnifiedBinding adUnifiedBinding = NativeAdUnifiedBinding.inflate(getLayoutInflater());
         populateUnifiedNativeAdView(adUnifiedBinding.unifiedView, adUnifiedBinding);
 
-        binding.nativeAdPlaceholder.removeAllViews();
-        binding.nativeAdPlaceholder.addView(adUnifiedBinding.getRoot());
+        viewBinding.nativeAdPlaceholder.addView(adUnifiedBinding.getRoot());
 
         view.setEnabled(false);
     }
@@ -520,4 +536,5 @@ public class MainActivity extends AppCompatActivity {
 
         adView.setNativeAd(nativeAd);
     }
+    //endregion
 }
