@@ -1,23 +1,3 @@
-/**
- * Copyright 2020 StartApp Inc
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/**
- * if you take (copy/paste) this file to your own project
- * change this package path to your own as well
- */
 package com.startapp.mediation.admob;
 
 import android.app.Activity;
@@ -60,7 +40,6 @@ import com.google.android.gms.ads.mediation.customevent.CustomEventInterstitialL
 import com.google.android.gms.ads.mediation.customevent.CustomEventNative;
 import com.google.android.gms.ads.mediation.customevent.CustomEventNativeListener;
 import com.google.android.gms.ads.rewarded.RewardItem;
-import com.startapp.sdk.GeneratedConstants;
 import com.startapp.sdk.ads.banner.Banner;
 import com.startapp.sdk.ads.banner.BannerBase;
 import com.startapp.sdk.ads.banner.BannerListener;
@@ -419,16 +398,28 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     //region Utils
     private static AtomicBoolean sIsInitialized = new AtomicBoolean(false);
 
-    public static boolean initializeSdkIfNeeded(@NonNull Context context, @Nullable String appId) {
+    public static boolean initializeSdkIfNeeded(@NonNull Context context, @Nullable String appId, boolean testAds) {
         if (TextUtils.isEmpty(appId)) {
+            Log.e("StartAppSDK", "App ID not found\n" +
+                    "+-------------------------------------------------------------+\n" +
+                    "|                S   T   A   R   T   A   P   P                |\n" +
+                    "| - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |\n" +
+                    "| AdMob Mediation is configured wrongly, App ID not found     |\n" +
+                    "| Put your App ID as Parameter for Custom Event:              |\n" +
+                    "|                                                             |\n" +
+                    "|              { startappAppId : 'YOUR_APP_ID' }              |\n" +
+                    "|                                                             |\n" +
+                    "| https://support.startapp.com/hc/en-us/articles/360005100893 |\n" +
+                    "+-------------------------------------------------------------+\n");
             return false;
         }
 
         if (!sIsInitialized.getAndSet(true)) {
+            StartAppSDK.setTestAdsEnabled(testAds);
             StartAppSDK.init(context, appId, false);
             StartAppAd.disableSplash();
+            StartAppAd.enableConsent(context, false);
             StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
-
             return true;
         }
 
@@ -463,7 +454,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     ) {
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        initializeSdkIfNeeded(context, extras.getAppId());
+        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         interstitialListener = listener;
         interstitial = new StartAppAd(context);
@@ -597,7 +588,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     ) {
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        initializeSdkIfNeeded(context, extras.getAppId());
+        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         final Activity activity = (Activity) context;
         final BannerBase result;
@@ -634,31 +625,70 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     @Override
     @Nullable
     public VersionInfo getVersionInfo() {
+        if (true) return getSDKVersionInfo();
+
         final String[] parts = BuildConfig.VERSION_NAME.split("\\.");
         if (parts.length < 3) {
-            return null;
+            return new VersionInfo(0, 0, 1);
         }
 
         try {
             return new VersionInfo(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
         } catch (Exception e) {
-            return null;
+            return new VersionInfo(0, 0, 1);
         }
     }
 
     @Override
     @Nullable
     public VersionInfo getSDKVersionInfo() {
-        final String[] parts = GeneratedConstants.INAPP_VERSION.split("\\.");
+        String version = null;
+
+        try {
+            version = (String) StartAppSDK.class.getDeclaredMethod("getVersion").invoke(null);
+        } catch (Throwable ex) {
+            // ignore
+        }
+
+        if (version == null) {
+            try {
+                version = (String) Class.forName("com.startapp.sdk.GeneratedConstants")
+                        .getDeclaredField("INAPP_VERSION")
+                        .get(null);
+            } catch (Throwable ex) {
+                // ignore
+            }
+        }
+
+        if (version == null) {
+            return null;
+        }
+
+        final String[] parts = version.split("\\.");
         if (parts.length < 3) {
             return null;
         }
 
         try {
-            return new VersionInfo(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
-        } catch (Exception e) {
+            int major = Integer.parseInt(parts[0]);
+            int minor = Integer.parseInt(parts[1]);
+            int patch = Integer.parseInt(leadingDigits(parts[2]));
+            return new VersionInfo(major, minor, patch);
+        } catch (Throwable e) {
             return null;
         }
+    }
+
+    private static String leadingDigits(String input) {
+        for (int i = 0, n = input.length(); i < n; ++i) {
+            char c = input.charAt(i);
+
+            if (c < '0' || c > '9') {
+                return input.substring(0, i);
+            }
+        }
+
+        return input;
     }
 
     @Override
@@ -673,7 +703,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
         final Extras extras = new Extras(adConfiguration);
 
-        initializeSdkIfNeeded(context, extras.getAppId());
+        initializeSdkIfNeeded(context, extras.getAppId(), adConfiguration.isTestRequest());
 
         rewarded = new StartAppAd(context);
         rewarded.setVideoListener(new VideoListener() {
@@ -768,7 +798,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     ) {
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        initializeSdkIfNeeded(context, extras.getAppId());
+        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         final StartAppNativeAd startappAds = new StartAppNativeAd(context);
         final NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
