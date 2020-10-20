@@ -7,7 +7,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.0'
+        classpath 'com.android.tools.build:gradle:4.0.2'
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
     }
 }
@@ -20,13 +20,13 @@ allprojects {
 }
 
 android {
-    compileSdkVersion 29
+    compileSdkVersion 30
 
     version VERSION_NAME as String // needs for bintray
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 29
+        targetSdkVersion 30
 
         versionCode VERSION_CODE as int
         versionName version
