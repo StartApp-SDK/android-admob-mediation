@@ -436,10 +436,11 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
         if (!sIsInitialized.getAndSet(true)) {
             StartAppSDK.setTestAdsEnabled(testAds);
-            StartAppSDK.init(context, appId, false);
             StartAppAd.disableSplash();
             StartAppAd.enableConsent(context, false);
             StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
+            StartAppSDK.init(context, appId, false);
+
             return true;
         }
 
@@ -645,8 +646,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     @Override
     @Nullable
     public VersionInfo getVersionInfo() {
-        if (true) return getSDKVersionInfo();
-
         final String[] parts = BuildConfig.VERSION_NAME.split("\\.");
         if (parts.length < 3) {
             return new VersionInfo(0, 0, 1);
