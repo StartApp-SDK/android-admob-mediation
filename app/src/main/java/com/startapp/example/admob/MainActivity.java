@@ -16,26 +16,33 @@
 
 package com.startapp.example.admob;
 
+import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.view.ViewCompat;
 
-import android.os.Bundle;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Toast;
-
+import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdLoader;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdValue;
 import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.formats.NativeAd;
 import com.google.android.gms.ads.formats.UnifiedNativeAd;
 import com.google.android.gms.ads.formats.UnifiedNativeAdView;
+import com.google.android.gms.ads.interstitial.InterstitialAd;
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.gms.ads.rewarded.RewardItem;
 import com.google.android.gms.ads.rewarded.RewardedAd;
 import com.google.android.gms.ads.rewarded.RewardedAdCallback;
@@ -57,6 +64,8 @@ public class MainActivity extends AppCompatActivity {
         viewBinding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
 
+        MobileAds.initialize(this);
+
         // You can initialize the startapp sdk here, but prefer to do that from the admob network custom event interface
         // Example: {startappAppId:'your_app_id_from_portal'}
         // StartappAdapter.initializeSdkIfNeeded(this, "204653131");
@@ -65,9 +74,11 @@ public class MainActivity extends AppCompatActivity {
         StartAppSDK.setTestAdsEnabled(true);
         // -----------------------------------------------------------------------------------
 
-        initInterstitial();
         initBanner();
         initMrec();
+
+        // uncomment if you want to run AdMob's Test Suite
+        // MediationTestSuite.launch(this);
     }
 
     //region Banner
@@ -93,8 +104,8 @@ public class MainActivity extends AppCompatActivity {
 
         banner.setAdListener(new AdListener() {
             @Override
-            public void onAdFailedToLoad(int errorCode) {
-                Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
+            public void onAdFailedToLoad(LoadAdError error) {
+                Toast.makeText(MainActivity.this, "Load failed, " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -126,11 +137,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdImpression() {
                 Toast.makeText(MainActivity.this, "Banner - onAdImpression", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdLeftApplication() {
-                Toast.makeText(MainActivity.this, "Banner - onAdLeftApplication", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -185,8 +191,8 @@ public class MainActivity extends AppCompatActivity {
 
         mrec.setAdListener(new AdListener() {
             @Override
-            public void onAdFailedToLoad(int errorCode) {
-                Toast.makeText(MainActivity.this, "Mrec load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
+            public void onAdFailedToLoad(LoadAdError error) {
+                Toast.makeText(MainActivity.this, "Mrec load failed, " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
 
             @Override
@@ -218,11 +224,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdImpression() {
                 Toast.makeText(MainActivity.this, "Mrec - onAdImpression", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdLeftApplication() {
-                Toast.makeText(MainActivity.this, "Mrec - onAdLeftApplication", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -258,47 +259,6 @@ public class MainActivity extends AppCompatActivity {
     @Nullable
     private InterstitialAd interstitial;
 
-    private void initInterstitial() {
-        interstitial = new InterstitialAd(this);
-        interstitial.setAdUnitId(getString(R.string.interstitialId));
-        interstitial.setAdListener(new AdListener() {
-            @Override
-            public void onAdFailedToLoad(int errorCode) {
-                Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdLoaded() {
-                viewBinding.interstitialShowButton.setEnabled(true);
-            }
-
-            @Override
-            public void onAdOpened() {
-                Toast.makeText(MainActivity.this, "interstitial - onAdOpened", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdClosed() {
-                Toast.makeText(MainActivity.this, "interstitial - onAdClosed", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdClicked() {
-                Toast.makeText(MainActivity.this, "interstitial - onAdClicked", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdImpression() {
-                Toast.makeText(MainActivity.this, "interstitial - onAdImpression", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onAdLeftApplication() {
-                Toast.makeText(MainActivity.this, "interstitial - onAdLeftApplication", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
     /**
      * you can as well write to admob network custom event interface optional parameter
      * which must be in json format, unused by you fields can be omitted:
@@ -306,10 +266,6 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadInterstitial(@NonNull View view) {
-        if (interstitial == null) {
-            return;
-        }
-
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("interstitialTagFromAdRequest")
@@ -318,9 +274,65 @@ public class MainActivity extends AppCompatActivity {
                 .setMinCPM(0.01)
                 .toBundle();
 
-        interstitial.loadAd(new AdRequest.Builder()
+        final AdRequest request = new AdRequest.Builder()
                 .addCustomEventExtrasBundle(StartappAdapter.class, extras)
-                .build());
+                .build();
+
+        InterstitialAd.load(this, getString(R.string.interstitialId), request, new InterstitialAdLoadCallback() {
+            @Override
+            public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                // The interstitial reference will be null until
+                // an ad is loaded.
+                interstitial = interstitialAd;
+                setupInterstitialDisplayCallbacks();
+
+                viewBinding.interstitialShowButton.setEnabled(true);
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                // Handle the error
+                Toast.makeText(MainActivity.this, "interstitial load failed, " + loadAdError.getMessage(), Toast.LENGTH_SHORT).show();
+                interstitial = null;
+            }
+        });
+    }
+
+    private void setupInterstitialDisplayCallbacks() {
+        if (interstitial == null) {
+            return;
+        }
+
+        interstitial.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                // Called when fullscreen content is dismissed.
+                Toast.makeText(MainActivity.this, "interstitial - onAdDismissedFullScreenContent", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(AdError adError) {
+                // Called when fullscreen content failed to show.
+                Toast.makeText(MainActivity.this, "interstitial - onAdFailedToShowFullScreenContent, " + adError.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdShowedFullScreenContent() {
+                // Called when fullscreen content is shown.
+                // Make sure to set your reference to null so you don't
+                // show it a second time.
+                Toast.makeText(MainActivity.this, "interstitial - onAdShowedFullScreenContent", Toast.LENGTH_SHORT).show();
+
+                interstitial = null;
+            }
+        });
+
+        interstitial.setOnPaidEventListener(new OnPaidEventListener() {
+            @Override
+            public void onPaidEvent(AdValue adValue) {
+                Toast.makeText(MainActivity.this, "interstitial - setOnPaidEventListener", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public void onClickShowInterstitial(@NonNull View view) {
@@ -330,7 +342,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        interstitial.show();
+        interstitial.show(this);
     }
     //endregion
 
