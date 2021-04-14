@@ -416,7 +416,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     //endregion
 
     //region Utils
-    private static AtomicBoolean sIsInitialized = new AtomicBoolean(false);
+    private static final AtomicBoolean sIsInitialized = new AtomicBoolean(false);
 
     public static boolean initializeSdkIfNeeded(@NonNull Context context, @Nullable String appId, boolean testAds) {
         if (TextUtils.isEmpty(appId)) {
