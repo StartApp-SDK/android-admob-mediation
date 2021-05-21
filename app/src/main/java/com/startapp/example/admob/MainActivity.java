@@ -38,14 +38,13 @@ import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnPaidEventListener;
-import com.google.android.gms.ads.formats.NativeAd;
-import com.google.android.gms.ads.formats.UnifiedNativeAd;
-import com.google.android.gms.ads.formats.UnifiedNativeAdView;
+import com.google.android.gms.ads.OnUserEarnedRewardListener;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.gms.ads.nativead.NativeAd;
+import com.google.android.gms.ads.nativead.NativeAdView;
 import com.google.android.gms.ads.rewarded.RewardItem;
 import com.google.android.gms.ads.rewarded.RewardedAd;
-import com.google.android.gms.ads.rewarded.RewardedAdCallback;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.startapp.example.admob.databinding.ActivityMainBinding;
 import com.startapp.example.admob.databinding.NativeAdUnifiedBinding;
@@ -311,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onAdFailedToShowFullScreenContent(AdError adError) {
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                 // Called when fullscreen content failed to show.
                 Toast.makeText(MainActivity.this, "interstitial - onAdFailedToShowFullScreenContent, " + adError.getMessage(), Toast.LENGTH_SHORT).show();
             }
@@ -357,9 +356,6 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadRewarded(@NonNull View view) {
-        //RewardedAd is a one-time-use object, so it should be recreated on every new load
-        rewarded = new RewardedAd(this, getString(R.string.rewardedId));
-
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("rewardedTagFromAdRequest")
@@ -367,51 +363,60 @@ public class MainActivity extends AppCompatActivity {
                 .setMinCPM(0.01)
                 .toBundle();
 
-        final RewardedAdLoadCallback loadCallback = new RewardedAdLoadCallback() {
+        final AdRequest adRequest = new AdRequest.Builder()
+                .addNetworkExtrasBundle(StartappAdapter.class, extras)
+                .build();
+
+        RewardedAd.load(this, getString(R.string.rewardedId), adRequest, new RewardedAdLoadCallback() {
             @Override
-            public void onRewardedAdLoaded() {
+            public void onAdLoaded(@NonNull RewardedAd rewardedAd) {
+                rewarded = rewardedAd;
                 viewBinding.rewardedShowButton.setEnabled(true);
             }
 
             @Override
-            public void onRewardedAdFailedToLoad(int errorCode) {
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 viewBinding.rewardedShowButton.setEnabled(false);
-
-                Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Load failed: " + loadAdError, Toast.LENGTH_SHORT).show();
             }
-        };
-
-        rewarded.loadAd(new AdRequest.Builder()
-                .addNetworkExtrasBundle(StartappAdapter.class, extras)
-                .build(), loadCallback);
+        });
     }
 
     public void onClickShowRewarded(@NonNull View view) {
         view.setEnabled(false);
 
-        if (rewarded == null || !rewarded.isLoaded()) {
+        if (rewarded == null) {
             return;
         }
 
-        rewarded.show(this, new RewardedAdCallback() {
+        rewarded.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
-            public void onRewardedAdOpened() {
-                Toast.makeText(MainActivity.this, "rewarded - onRewardedAdOpened", Toast.LENGTH_SHORT).show();
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                Toast.makeText(MainActivity.this, "rewarded - onAdFailedToShowFullScreenContent: " + adError, Toast.LENGTH_SHORT).show();
             }
 
             @Override
-            public void onRewardedAdClosed() {
-                Toast.makeText(MainActivity.this, "rewarded - onRewardedAdClosed", Toast.LENGTH_SHORT).show();
+            public void onAdShowedFullScreenContent() {
+                rewarded = null;
+                Toast.makeText(MainActivity.this, "rewarded - onAdShowedFullScreenContent", Toast.LENGTH_SHORT).show();
             }
 
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                rewarded = null;
+                Toast.makeText(MainActivity.this, "rewarded - onAdDismissedFullScreenContent", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdImpression() {
+                Toast.makeText(MainActivity.this, "rewarded - onAdImpression", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        rewarded.show(this, new OnUserEarnedRewardListener() {
             @Override
             public void onUserEarnedReward(@NonNull RewardItem rewardItem) {
                 Toast.makeText(MainActivity.this, "rewarded - onUserEarnedReward: type=" + rewardItem.getType() + " amount=" + rewardItem.getAmount(), Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onRewardedAdFailedToShow(int errorCode) {
-                Toast.makeText(MainActivity.this, "rewarded - show failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -419,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
 
     //region Native
     @Nullable
-    private UnifiedNativeAd nativeAd;
+    private NativeAd nativeAdObject;
 
     /**
      * you can as well write to admob network custom event interface optional parameter
@@ -432,19 +437,19 @@ public class MainActivity extends AppCompatActivity {
         viewBinding.nativeAdPlaceholder.removeAllViews();
 
         final AdLoader loader = new AdLoader.Builder(this, getString(R.string.nativeId))
-                .forUnifiedNativeAd(new UnifiedNativeAd.OnUnifiedNativeAdLoadedListener() {
+                .forNativeAd(new NativeAd.OnNativeAdLoadedListener() {
                     @Override
-                    public void onUnifiedNativeAdLoaded(@NonNull UnifiedNativeAd unifiedNativeAd) {
-                        nativeAd = unifiedNativeAd;
+                    public void onNativeAdLoaded(@NonNull NativeAd nativeAd) {
+                        nativeAdObject = nativeAd;
                         viewBinding.nativeShowButton.setEnabled(true);
                     }
                 })
                 .withAdListener(new AdListener() {
                     @Override
-                    public void onAdFailedToLoad(int errorCode) {
+                    public void onAdFailedToLoad(@NonNull LoadAdError adError) {
                         viewBinding.nativeShowButton.setEnabled(false);
 
-                        Toast.makeText(MainActivity.this, "Load failed, errorCode=" + errorCode, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Load failed: " + adError, Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
@@ -466,11 +471,6 @@ public class MainActivity extends AppCompatActivity {
                     public void onAdImpression() {
                         Toast.makeText(MainActivity.this, "native - onAdImpression", Toast.LENGTH_SHORT).show();
                     }
-
-                    @Override
-                    public void onAdLeftApplication() {
-                        Toast.makeText(MainActivity.this, "native - onAdLeftApplication", Toast.LENGTH_SHORT).show();
-                    }
                 })
                 .build();
 
@@ -489,64 +489,64 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickShowNative(@NonNull View view) {
         final NativeAdUnifiedBinding adUnifiedBinding = NativeAdUnifiedBinding.inflate(getLayoutInflater());
-        populateUnifiedNativeAdView(adUnifiedBinding.unifiedView, adUnifiedBinding);
+        populateNativeAdView(adUnifiedBinding.nativeView, adUnifiedBinding);
 
         viewBinding.nativeAdPlaceholder.addView(adUnifiedBinding.getRoot());
 
         view.setEnabled(false);
     }
 
-    private void populateUnifiedNativeAdView(@NonNull UnifiedNativeAdView adView, @NonNull NativeAdUnifiedBinding unifiedBinding) {
-        if (nativeAd == null) {
+    private void populateNativeAdView(@NonNull NativeAdView adView, @NonNull NativeAdUnifiedBinding unifiedBinding) {
+        if (nativeAdObject == null) {
             return;
         }
 
-        unifiedBinding.headlineTextView.setText(nativeAd.getHeadline());
+        unifiedBinding.headlineTextView.setText(nativeAdObject.getHeadline());
         adView.setHeadlineView(unifiedBinding.headlineTextView);
 
         // the asset is populated automatically, so there's one less step
         adView.setMediaView(unifiedBinding.mediaView);
 
-        final List<NativeAd.Image> images = nativeAd.getImages();
-        if (images != null && images.size() > 0) {
+        final List<NativeAd.Image> images = nativeAdObject.getImages();
+        if (images.size() > 0) {
             unifiedBinding.imageView.setImageDrawable(images.get(0).getDrawable());
             adView.setImageView(unifiedBinding.imageView);
         }
 
-        unifiedBinding.callToActionTextView.setText(nativeAd.getCallToAction());
+        unifiedBinding.callToActionTextView.setText(nativeAdObject.getCallToAction());
         adView.setCallToActionView(unifiedBinding.callToActionTextView);
 
-        unifiedBinding.bodyTextView.setText(nativeAd.getBody());
+        unifiedBinding.bodyTextView.setText(nativeAdObject.getBody());
         adView.setBodyView(unifiedBinding.bodyTextView);
 
-        unifiedBinding.advertiserTextView.setText(nativeAd.getAdvertiser());
+        unifiedBinding.advertiserTextView.setText(nativeAdObject.getAdvertiser());
         adView.setAdvertiserView(unifiedBinding.advertiserTextView);
 
-        final NativeAd.Image image = nativeAd.getIcon();
+        final NativeAd.Image image = nativeAdObject.getIcon();
         if (image != null) {
             unifiedBinding.logoImageView.setImageDrawable(image.getDrawable());
             adView.setIconView(unifiedBinding.logoImageView);
         }
 
-        final String price = nativeAd.getPrice();
+        final String price = nativeAdObject.getPrice();
         if (price != null) {
             unifiedBinding.priceTextView.setText(price);
             adView.setPriceView(unifiedBinding.priceTextView);
         }
 
-        final Double rating = nativeAd.getStarRating();
+        final Double rating = nativeAdObject.getStarRating();
         if (rating != null) {
             unifiedBinding.ratingTextView.setText(String.valueOf(rating));
             adView.setStarRatingView(unifiedBinding.ratingTextView);
         }
 
-        final String store = nativeAd.getStore();
+        final String store = nativeAdObject.getStore();
         if (store != null) {
             unifiedBinding.storeTextView.setText(store);
             adView.setStoreView(unifiedBinding.storeTextView);
         }
 
-        adView.setNativeAd(nativeAd);
+        adView.setNativeAd(nativeAdObject);
     }
     //endregion
 }
