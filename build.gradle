@@ -3,43 +3,38 @@ apply plugin: 'com.android.library'
 buildscript {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
         classpath 'com.android.tools.build:gradle:4.0.1'
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.5'
     }
 }
 
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 }
 
 android {
     compileSdkVersion 30
 
-    version VERSION_NAME as String // needs for bintray
-
     defaultConfig {
         minSdkVersion 14
         targetSdkVersion 30
 
         versionCode VERSION_CODE as int
-        versionName version
-        archivesBaseName = ARTIFACT_NAME as String
+        versionName VERSION_NAME
     }
 }
 
 dependencies {
     // noinspection GradleDependency
-    implementation 'com.google.android.gms:play-services-ads:[19,20)'
+    api 'com.google.android.gms:play-services-ads:20+'
     // noinspection GradleDependency
-    implementation 'com.startapp:inapp-sdk:[4.6,5)'
+    api 'com.startapp:inapp-sdk:[4.6,5)'
 }
 
-apply from: 'create_pom.gradle'
-apply from: 'bintray_upload.gradle'
+apply from: 'publish-mavencentral.gradle'

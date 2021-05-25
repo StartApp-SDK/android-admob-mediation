@@ -25,6 +25,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -38,6 +39,7 @@ import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.formats.NativeAd;
@@ -73,9 +75,9 @@ import com.startapp.sdk.ads.nativead.StartAppNativeAd;
 import com.startapp.sdk.adsbase.Ad;
 import com.startapp.sdk.adsbase.StartAppAd;
 import com.startapp.sdk.adsbase.StartAppSDK;
-import com.startapp.sdk.adsbase.VideoListener;
 import com.startapp.sdk.adsbase.adlisteners.AdDisplayListener;
 import com.startapp.sdk.adsbase.adlisteners.AdEventListener;
+import com.startapp.sdk.adsbase.adlisteners.VideoListener;
 import com.startapp.sdk.adsbase.model.AdPreferences;
 
 import org.json.JSONException;
@@ -83,8 +85,10 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Keep
@@ -118,9 +122,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         SIZE100X100,
         SIZE150X150,
         SIZE340X340,
-        SIZE1200X628,
-        SIZE320X480,
-        SIZE480X320
+        SIZE1200X628
     }
 
     public static class Extras {
@@ -184,11 +186,8 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
 
         Extras(@NonNull MediationRewardedAdConfiguration configuration) {
-            final Bundle serverParameters = configuration.getServerParameters();
-            String serverParameter = null;
-            if (serverParameters != null) {
-                serverParameter = serverParameters.getString("parameter");
-            }
+            Bundle serverParameters = configuration.getServerParameters();
+            String serverParameter = serverParameters.getString("parameter");
 
             adPreferences = makeAdPreferences(configuration.getMediationExtras(), serverParameter, false, null);
 
@@ -199,12 +198,13 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
 
         private static void setKeywords(@NonNull AdPreferences prefs, @NonNull MediationAdRequest request) {
-            if (request.getKeywords() == null) {
+            Set<String> keywords = request.getKeywords();
+            if (keywords == null) {
                 return;
             }
 
-            final StringBuilder sb = new StringBuilder();
-            for (String keyWord : request.getKeywords()) {
+            StringBuilder sb = new StringBuilder();
+            for (String keyWord : keywords) {
                 sb.append(keyWord).append(",");
             }
 
@@ -212,7 +212,8 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
 
         private static void setLocation(@NonNull AdPreferences prefs, @NonNull MediationAdRequest request) {
-            if (request.getLocation() == null) {
+            Location location = request.getLocation();
+            if (location == null) {
                 return;
             }
 
@@ -416,35 +417,31 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     //endregion
 
     //region Utils
-    private static final AtomicBoolean sIsInitialized = new AtomicBoolean(false);
+    private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
-    public static boolean initializeSdkIfNeeded(@NonNull Context context, @Nullable String appId, boolean testAds) {
+    private static void initializeIfNecessary(@NonNull Context context, @Nullable String appId, boolean testAds) {
         if (TextUtils.isEmpty(appId)) {
             Log.e("StartAppSDK", "App ID not found\n" +
-                    "+-------------------------------------------------------------+\n" +
-                    "|                S   T   A   R   T   A   P   P                |\n" +
-                    "| - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |\n" +
-                    "| AdMob Mediation is configured wrongly, App ID not found     |\n" +
-                    "| Put your App ID as Parameter for Custom Event:              |\n" +
-                    "|                                                             |\n" +
-                    "|              { startappAppId : 'YOUR_APP_ID' }              |\n" +
-                    "|                                                             |\n" +
-                    "| https://support.startapp.com/hc/en-us/articles/360005100893 |\n" +
-                    "+-------------------------------------------------------------+\n");
-            return false;
+                    "+-----------------------------------------------------------------------+\n" +
+                    "|                S   T   A   R   T   A   P   P                          |\n" +
+                    "| - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |\n" +
+                    "| AdMob Mediation is configured wrong, App ID not found                 |\n" +
+                    "| Put your App ID as Parameter for Custom Event:                        |\n" +
+                    "|                                                                       |\n" +
+                    "|              { startappAppId : 'YOUR_APP_ID' }                        |\n" +
+                    "|                                                                       |\n" +
+                    "| https://support.start.io/hc/en-us/articles/360005100893-AdMob-Adapter |\n" +
+                    "+-----------------------------------------------------------------------+\n");
+            return;
         }
 
-        if (!sIsInitialized.getAndSet(true)) {
+        if (!isInitialized.getAndSet(true)) {
             StartAppSDK.setTestAdsEnabled(testAds);
             StartAppAd.disableSplash();
             StartAppAd.enableConsent(context, false);
             StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
             StartAppSDK.init(context, appId, false);
-
-            return true;
         }
-
-        return false;
     }
 
     private static void removeFromParent(@Nullable View view) {
@@ -475,7 +472,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     ) {
         final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
 
-        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
+        initializeIfNecessary(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         interstitialListener = listener;
         interstitial = new StartAppAd(context);
@@ -489,10 +486,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             public void onFailedToReceiveAd(@NonNull Ad ad) {
                 final String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
-
-                listener.onAdFailedToLoad((message != null && message.contains("204"))
-                        ? AdRequest.ERROR_CODE_NO_FILL
-                        : AdRequest.ERROR_CODE_INTERNAL_ERROR);
+                listener.onAdFailedToLoad(messageToError(message));
             }
         };
 
@@ -535,7 +529,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 }
 
                 interstitialListener.onAdClicked();
-                interstitialListener.onAdLeftApplication();
             }
 
             @Override
@@ -563,7 +556,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
 
         bannerContainer = new FrameLayout(context);
-        final BannerListener loadListener = new BannerListener() {
+        BannerListener loadListener = new BannerListener() {
             @Override
             public void onReceiveAd(@NonNull View view) {
                 listener.onAdLoaded(bannerContainer);
@@ -582,11 +575,10 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             public void onClick(@NonNull View view) {
                 listener.onAdClicked();
                 listener.onAdOpened();
-                listener.onAdLeftApplication();
             }
         };
 
-        final BannerBase banner = loadBanner(context, serverParameter, adSize, mediationAdRequest, customEventExtras, loadListener);
+        BannerBase banner = loadBanner(context, serverParameter, adSize, mediationAdRequest, customEventExtras, loadListener);
         // force banner to calculate its view size
         bannerContainer.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -607,9 +599,8 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @Nullable Bundle customEventExtras,
             @NonNull BannerListener loadListener
     ) {
-        final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
-
-        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
+        Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
+        initializeIfNecessary(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         final Activity activity = (Activity) context;
         final BannerBase result;
@@ -644,7 +635,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     }
 
     @Override
-    @Nullable
+    @NonNull
     public VersionInfo getVersionInfo() {
         final String[] parts = BuildConfig.VERSION_NAME.split("\\.");
         if (parts.length < 3) {
@@ -659,7 +650,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
     }
 
     @Override
-    @Nullable
+    @NonNull
     public VersionInfo getSDKVersionInfo() {
         String version = null;
 
@@ -680,12 +671,12 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
 
         if (version == null) {
-            return null;
+            return new VersionInfo(0, 0, 1);
         }
 
         final String[] parts = version.split("\\.");
         if (parts.length < 3) {
-            return null;
+            return new VersionInfo(0, 0, 1);
         }
 
         try {
@@ -694,7 +685,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             int patch = Integer.parseInt(leadingDigits(parts[2]));
             return new VersionInfo(major, minor, patch);
         } catch (Throwable e) {
-            return null;
+            return new VersionInfo(0, 0, 1);
         }
     }
 
@@ -715,14 +706,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @NonNull MediationRewardedAdConfiguration adConfiguration,
             @NonNull final MediationAdLoadCallback<MediationRewardedAd, MediationRewardedAdCallback> loadCallback
     ) {
-        final Context context = adConfiguration.getContext();
-        if (context == null) {
-            return;
-        }
-
-        final Extras extras = new Extras(adConfiguration);
-
-        initializeSdkIfNeeded(context, extras.getAppId(), adConfiguration.isTestRequest());
+        Context context = adConfiguration.getContext();
+        Extras extras = new Extras(adConfiguration);
+        initializeIfNecessary(context, extras.getAppId(), adConfiguration.isTestRequest());
 
         rewarded = new StartAppAd(context);
         rewarded.setVideoListener(new VideoListener() {
@@ -743,10 +729,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
             @Override
             public void onFailedToReceiveAd(@NonNull Ad ad) {
-                final String message = ad.getErrorMessage();
+                String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
-
-                loadCallback.onFailure(message != null ? message : "No fill.");
+                loadCallback.onFailure(messageToError(message));
             }
         };
 
@@ -786,7 +771,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @Override
             public void adNotDisplayed(Ad ad) {
                 if (rewardedListener != null) {
-                    rewardedListener.onAdFailedToShow(ad.getErrorMessage());
+                    String message = ad.getErrorMessage();
+                    rewardedListener.onAdFailedToShow(
+                            new AdError(0, message != null ? message : "adNotDisplayed", "io.start"));
                 }
             }
         });
@@ -815,9 +802,8 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @NonNull NativeMediationAdRequest mediationAdRequest,
             @Nullable Bundle customEventExtras
     ) {
-        final Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
-
-        initializeSdkIfNeeded(context, extras.getAppId(), mediationAdRequest.isTesting());
+        Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
+        initializeIfNecessary(context, extras.getAppId(), mediationAdRequest.isTesting());
 
         final StartAppNativeAd startappAds = new StartAppNativeAd(context);
         final NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
@@ -830,7 +816,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                     listener.onAdLoaded(new NativeMapper(context, ads.get(0), prefs.isContentAd(), listener));
                 } else {
                     Log.v(LOG_TAG, "ad loading failed: no fill");
-                    listener.onAdFailedToLoad(AdRequest.ERROR_CODE_NO_FILL);
+                    listener.onAdFailedToLoad(messageToError("204"));
                 }
             }
 
@@ -838,23 +824,9 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             public void onFailedToReceiveAd(@NonNull Ad ad) {
                 final String message = ad.getErrorMessage();
                 Log.v(LOG_TAG, "ad loading failed: " + message);
-
-                listener.onAdFailedToLoad((message != null && (message.contains("204") || message.contains("Empty Response")))
-                        ? AdRequest.ERROR_CODE_NO_FILL
-                        : AdRequest.ERROR_CODE_INTERNAL_ERROR);
+                listener.onAdFailedToLoad(messageToError(message));
             }
         });
-    }
-
-    @NonNull
-    private static String mapCallToAction(@NonNull StartAppNativeAd.CampaignAction action) {
-        switch (action) {
-            case OPEN_MARKET:
-                return "Install";
-            case LAUNCH_APP:
-                return "Launch app";
-        }
-        return "Open";
     }
 
     private static class NativeMapper extends UnifiedNativeAdMapper {
@@ -876,30 +848,22 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             setHasVideoContent(false);
             setHeadline(details.getTitle());
             setBody(details.getDescription());
-            setCallToAction(mapCallToAction(details.getCampaignAction()));
+            setCallToAction(details.getCallToAction());
             setStarRating((double) details.getRating());
 
             if (!isContentAd) {
-                final List<NativeAd.Image> images = new ArrayList<>(2);
-
                 if (!TextUtils.isEmpty(details.getImageUrl())) {
                     final Uri uri = Uri.parse(details.getImageUrl());
                     if (uri != null) {
-                        images.add(new MappedImage(context, uri, details.getImageBitmap()));
+                        setImages(Collections.<NativeAd.Image>singletonList(new MappedImage(context, uri, details.getImageBitmap())));
                     }
                 }
 
                 if (!TextUtils.isEmpty(details.getSecondaryImageUrl())) {
                     final Uri uri = Uri.parse(details.getSecondaryImageUrl());
                     if (uri != null) {
-                        final MappedImage icon = new MappedImage(context, uri, details.getSecondaryImageBitmap());
-                        images.add(icon);
-                        setIcon(icon);
+                        setIcon(new MappedImage(context, uri, details.getSecondaryImageBitmap()));
                     }
-                }
-
-                if (!images.isEmpty()) {
-                    setImages(images);
                 }
             }
 
@@ -913,12 +877,11 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
                 @NonNull Map<String, View> clickableAssetViews,
                 @NonNull Map<String, View> nonclickableAssetViews
         ) {
-            final List<View> clickableViews = new ArrayList<>(clickableAssetViews.values());
-
+            List<View> clickableViews = new ArrayList<>(clickableAssetViews.values());
             details.registerViewForInteraction(containerView, clickableViews, new NativeAdDisplayListener() {
                 @Override
                 public void adHidden(@NonNull NativeAdInterface nativeAdInterface) {
-                    final CustomEventNativeListener callbacks = listener.get();
+                    CustomEventNativeListener callbacks = listener.get();
                     if (callbacks != null) {
                         callbacks.onAdClosed();
                     }
@@ -926,7 +889,7 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
                 @Override
                 public void adDisplayed(@NonNull NativeAdInterface nativeAdInterface) {
-                    final CustomEventNativeListener callbacks = listener.get();
+                    CustomEventNativeListener callbacks = listener.get();
                     if (callbacks != null) {
                         callbacks.onAdImpression();
                     }
@@ -934,11 +897,10 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
 
                 @Override
                 public void adClicked(@NonNull NativeAdInterface nativeAdInterface) {
-                    final CustomEventNativeListener callbacks = listener.get();
+                    CustomEventNativeListener callbacks = listener.get();
                     if (callbacks != null) {
                         callbacks.onAdClicked();
                         callbacks.onAdOpened();
-                        callbacks.onAdLeftApplication();
                     }
                 }
 
@@ -991,4 +953,14 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         }
     }
     //endregion
+
+    @NonNull
+    private static AdError messageToError(@Nullable String message) {
+        boolean isNoFill = message != null && (message.contains("204") || message.contains("Empty Response"));
+        return new AdError(isNoFill
+                ? AdRequest.ERROR_CODE_MEDIATION_NO_FILL
+                : AdRequest.ERROR_CODE_INTERNAL_ERROR,
+                isNoFill ? "No Fill" : "Internal error",
+                "io.start");
+    }
 }
