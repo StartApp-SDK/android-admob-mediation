@@ -32,7 +32,7 @@ android {
 
 dependencies {
     // noinspection GradleDependency
-    api 'com.google.android.gms:play-services-ads:20+'
+    api 'com.google.android.gms:play-services-ads:[20,)'
     // noinspection GradleDependency
     api 'com.startapp:inapp-sdk:[4.6,5)'
 }
