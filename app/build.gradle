@@ -12,23 +12,25 @@ android {
         multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    viewBinding {
-        enabled = true
+
+    buildFeatures {
+        viewBinding = true
     }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.startapp:admob-mediation:2+'
 
-    implementation "com.google.android.gms:play-services-ads:20+"
-    implementation 'com.startapp:inapp-sdk:4.+'
-    implementation 'com.startapp:admob-mediation:2.+'
+    //implementation "com.google.android.gms:play-services-ads:20+"
+    //implementation 'com.startapp:inapp-sdk:4.+'
     //implementation project(path: ':admob-mediation')
     //implementation project(path: ':inapp-sdk')
 

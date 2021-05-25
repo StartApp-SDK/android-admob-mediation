@@ -65,10 +65,6 @@ public class MainActivity extends AppCompatActivity {
 
         MobileAds.initialize(this);
 
-        // You can initialize the startapp sdk here, but prefer to do that from the admob network custom event interface
-        // Example: {startappAppId:'your_app_id_from_portal'}
-        // StartappAdapter.initializeSdkIfNeeded(this, "204653131");
-
         // DON'T ADD THIS LINE TO YOUR REAL PROJECT, IT ENABLES TEST ADS WHICH GIVE NO REVENUE
         StartAppSDK.setTestAdsEnabled(true);
         // -----------------------------------------------------------------------------------
