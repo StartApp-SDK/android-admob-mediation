@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2020 StartApp Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-/**
+/*
  * if you take (copy/paste) this file to your own project
  * change this package path to your own as well
  */
 package com.startapp.mediation.admob;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -551,10 +550,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             @NonNull MediationAdRequest mediationAdRequest,
             @Nullable Bundle customEventExtras
     ) {
-        if (!(context instanceof Activity)) {
-            return;
-        }
-
         bannerContainer = new FrameLayout(context);
         BannerListener loadListener = new BannerListener() {
             @Override
@@ -602,15 +597,14 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
         Extras extras = new Extras(mediationAdRequest, customEventExtras, serverParameter);
         initializeIfNecessary(context, extras.getAppId(), mediationAdRequest.isTesting());
 
-        final Activity activity = (Activity) context;
         final BannerBase result;
 
         if (adSize.equals(AdSize.MEDIUM_RECTANGLE)) {
-            result = new Mrec(activity, extras.getAdPreferences(), loadListener);
+            result = new Mrec(context, extras.getAdPreferences(), loadListener);
         } else if (extras.is3DBanner()) {
-            result = new Banner3D(activity, extras.getAdPreferences(), loadListener);
+            result = new Banner3D(context, extras.getAdPreferences(), loadListener);
         } else {
-            result = new Banner(activity, extras.getAdPreferences(), loadListener);
+            result = new Banner(context, extras.getAdPreferences(), loadListener);
         }
 
         result.loadAd(adSize.getWidth(), adSize.getHeight());

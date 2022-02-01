@@ -7,7 +7,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.1'
+        classpath 'com.android.tools.build:gradle:4.2.2'
     }
 }
 
@@ -19,14 +19,16 @@ allprojects {
 }
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 31
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 30
+        targetSdkVersion 31
 
         versionCode VERSION_CODE as int
         versionName VERSION_NAME
+
+        buildConfigField 'String', 'VERSION_NAME', "\"$VERSION_NAME\""
     }
 }
 
