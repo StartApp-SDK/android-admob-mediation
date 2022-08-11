@@ -22,7 +22,7 @@ android {
     compileSdkVersion 31
 
     defaultConfig {
-        minSdkVersion 14
+        minSdkVersion 19
         targetSdkVersion 31
 
         versionCode VERSION_CODE as int
@@ -34,7 +34,7 @@ android {
 
 dependencies {
     // noinspection GradleDependency
-    api 'com.google.android.gms:play-services-ads:[20,)'
+    api 'com.google.android.gms:play-services-ads:[21,)'
     // noinspection GradleDependency
     api 'com.startapp:inapp-sdk:[4.6,5)'
 }

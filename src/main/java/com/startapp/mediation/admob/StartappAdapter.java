@@ -189,11 +189,6 @@ public class StartappAdapter extends Adapter implements CustomEventInterstitial,
             String serverParameter = serverParameters.getString("parameter");
 
             adPreferences = makeAdPreferences(configuration.getMediationExtras(), serverParameter, false, null);
-
-            if (configuration.getLocation() != null) {
-                adPreferences.setLongitude(configuration.getLocation().getLongitude());
-                adPreferences.setLatitude(configuration.getLocation().getLatitude());
-            }
         }
 
         private static void setKeywords(@NonNull AdPreferences prefs, @NonNull MediationAdRequest request) {
