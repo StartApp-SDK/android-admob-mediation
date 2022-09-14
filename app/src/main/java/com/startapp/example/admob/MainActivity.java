@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
 
         banner.setAdListener(new AdListener() {
             @Override
-            public void onAdFailedToLoad(LoadAdError error) {
+            public void onAdFailedToLoad(@NonNull LoadAdError error) {
                 Toast.makeText(MainActivity.this, "Load failed, " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
 
@@ -159,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
                 .toBundle();
 
         banner.loadAd(new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build());
     }
     //endregion
@@ -187,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
 
         mrec.setAdListener(new AdListener() {
             @Override
-            public void onAdFailedToLoad(LoadAdError error) {
+            public void onAdFailedToLoad(@NonNull LoadAdError error) {
                 Toast.makeText(MainActivity.this, "Mrec load failed, " + error.getMessage(), Toast.LENGTH_SHORT).show();
             }
 
@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
                 .toBundle();
 
         mrec.loadAd(new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build());
     }
     //endregion
@@ -271,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
                 .toBundle();
 
         final AdRequest request = new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build();
 
         InterstitialAd.load(this, getString(R.string.interstitialId), request, new InterstitialAdLoadCallback() {
@@ -325,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
 
         interstitial.setOnPaidEventListener(new OnPaidEventListener() {
             @Override
-            public void onPaidEvent(AdValue adValue) {
+            public void onPaidEvent(@NonNull AdValue adValue) {
                 Toast.makeText(MainActivity.this, "interstitial - setOnPaidEventListener", Toast.LENGTH_SHORT).show();
             }
         });
@@ -480,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
                 .toBundle();
 
         loader.loadAd(new AdRequest.Builder()
-                .addCustomEventExtrasBundle(StartappAdapter.class, extras)
+                .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build());
     }
 
