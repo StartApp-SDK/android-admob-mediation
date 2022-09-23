@@ -7,7 +7,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.2.2'
+        classpath 'com.android.tools.build:gradle:7.2.2'
     }
 }
 
@@ -30,13 +30,18 @@ android {
 
         buildConfigField 'String', 'VERSION_NAME', "\"$VERSION_NAME\""
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
 }
 
 dependencies {
     // noinspection GradleDependency
     api 'com.google.android.gms:play-services-ads:[21,)'
     // noinspection GradleDependency
-    api 'com.startapp:inapp-sdk:[4.6,5)'
+    api 'com.startapp:inapp-sdk:[4.10,5)'
 }
 
 apply from: 'publish-mavencentral.gradle'

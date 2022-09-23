@@ -20,6 +20,8 @@
  */
 package com.startapp.mediation.admob;
 
+import static com.startapp.mediation.admob.BuildConfig.DEBUG;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -30,9 +32,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.View;
-import android.widget.FrameLayout;
 
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
@@ -44,6 +44,7 @@ import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.formats.NativeAd;
 import com.google.android.gms.ads.mediation.Adapter;
 import com.google.android.gms.ads.mediation.InitializationCompleteCallback;
+import com.google.android.gms.ads.mediation.MediationAdConfiguration;
 import com.google.android.gms.ads.mediation.MediationAdLoadCallback;
 import com.google.android.gms.ads.mediation.MediationBannerAd;
 import com.google.android.gms.ads.mediation.MediationBannerAdCallback;
@@ -61,11 +62,10 @@ import com.google.android.gms.ads.mediation.UnifiedNativeAdMapper;
 import com.google.android.gms.ads.mediation.VersionInfo;
 import com.google.android.gms.ads.nativead.NativeAdOptions;
 import com.google.android.gms.ads.rewarded.RewardItem;
-import com.startapp.sdk.ads.banner.Banner;
-import com.startapp.sdk.ads.banner.BannerBase;
+import com.startapp.sdk.ads.banner.BannerCreator;
+import com.startapp.sdk.ads.banner.BannerFormat;
 import com.startapp.sdk.ads.banner.BannerListener;
-import com.startapp.sdk.ads.banner.Mrec;
-import com.startapp.sdk.ads.banner.banner3d.Banner3D;
+import com.startapp.sdk.ads.banner.BannerRequest;
 import com.startapp.sdk.ads.nativead.NativeAdDetails;
 import com.startapp.sdk.ads.nativead.NativeAdDisplayListener;
 import com.startapp.sdk.ads.nativead.NativeAdInterface;
@@ -383,6 +383,11 @@ public class StartappAdapter extends Adapter {
         }
     }
 
+    private static void initTestAds(@NonNull MediationAdConfiguration config) {
+        if (config.isTestRequest()) {
+            StartAppSDK.setTestAdsEnabled(true);
+        }
+    }
     //endregion
 
     //region Interstitial
@@ -395,12 +400,11 @@ public class StartappAdapter extends Adapter {
     @Override
     public void loadInterstitialAd(
             @NonNull MediationInterstitialAdConfiguration config,
-            @NonNull MediationAdLoadCallback<MediationInterstitialAd,
-                    MediationInterstitialAdCallback> callback
+            @NonNull final MediationAdLoadCallback<MediationInterstitialAd, MediationInterstitialAdCallback> callback
     ) {
-        StartAppSDK.setTestAdsEnabled(config.isTestRequest());
         Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
         initializeIfNecessary(config.getContext(), extras.getAppId());
+        initTestAds(config);
 
         interstitial = new StartAppAd(config.getContext());
         AdEventListener loadListener = new AdEventListener() {
@@ -465,98 +469,110 @@ public class StartappAdapter extends Adapter {
     //endregion
 
     //region Banner
-    @Nullable
-    private FrameLayout bannerContainer;
-
-    @Nullable
-    private MediationBannerAdCallback bannerCallback;
-
     @Override
     public void loadBannerAd(
             @NonNull MediationBannerAdConfiguration config,
-            @NonNull MediationAdLoadCallback<MediationBannerAd,
-                    MediationBannerAdCallback> callback
+            @NonNull final MediationAdLoadCallback<MediationBannerAd, MediationBannerAdCallback> callback
     ) {
-        bannerContainer = new FrameLayout(config.getContext());
-        BannerListener loadListener = new BannerListener() {
-            @Override
-            public void onReceiveAd(@NonNull View view) {
-                bannerCallback = callback.onSuccess(new MediationBannerAd() {
-                    @NonNull
-                    @Override
-                    public View getView() {
-                        return bannerContainer;
-                    }
-                });
-            }
+        final Context context = config.getContext();
+        final int adWidthDp, adHeightDp;
 
-            @Override
-            public void onFailedToReceiveAd(@NonNull View view) {
-                callback.onFailure(new AdError(AdRequest.ERROR_CODE_MEDIATION_NO_FILL,
-                       "No Fill",
-                        "io.start"));
-            }
-
-            @Override
-            public void onImpression(@NonNull View view) {
-                if (bannerCallback != null) {
-                    bannerCallback.onAdOpened();
-                    bannerCallback.reportAdImpression();
-                }
-            }
-
-            @Override
-            public void onClick(@NonNull View view) {
-                if (bannerCallback != null) {
-                    bannerCallback.reportAdClicked();
-                }
-            }
-        };
-
-        BannerBase banner = loadBanner(
-                config.getContext(),
-                config.getServerParameters(),
-                config.getAdSize(),
-                config.getMediationExtras(),
-                config.isTestRequest(),
-                loadListener);
-
-        // force banner to calculate its view size
-        bannerContainer.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT));
-
-        bannerContainer.addView(banner, new FrameLayout.LayoutParams(
-                config.getAdSize().getWidthInPixels(config.getContext()),
-                config.getAdSize().getHeightInPixels(config.getContext()),
-                Gravity.CENTER));
-    }
-
-    @NonNull
-    private BannerBase loadBanner(
-            @NonNull Context context,
-            @NonNull Bundle serverParameter,
-            @NonNull AdSize adSize,
-            @NonNull Bundle customEventExtras,
-            boolean isTesting,
-            @NonNull BannerListener loadListener
-    ) {
-        StartAppSDK.setTestAdsEnabled(isTesting);
-        Extras extras = new Extras(customEventExtras, serverParameter);
-        initializeIfNecessary(context, extras.getAppId());
-
-        final BannerBase result;
-
-        if (adSize.equals(AdSize.MEDIUM_RECTANGLE)) {
-            result = new Mrec(context, extras.getAdPreferences(), loadListener);
-        } else if (extras.is3DBanner()) {
-            result = new Banner3D(context, extras.getAdPreferences(), loadListener);
+        AdSize adSize = config.getAdSize();
+        if (adSize.getWidth() > 0 && adSize.getHeight() > 0) {
+            adWidthDp = adSize.getWidth();
+            adHeightDp = adSize.getHeight();
         } else {
-            result = new Banner(context, extras.getAdPreferences(), loadListener);
+            int adWidthPx = adSize.getWidthInPixels(context);
+            int adHeightPx = adSize.getHeightInPixels(context);
+
+            if (adWidthPx > 0 && adHeightPx > 0) {
+                float density = context.getResources().getDisplayMetrics().density;
+                if (density > 0) {
+                    adWidthDp = (int) Math.ceil(adWidthPx / density);
+                    adHeightDp = (int) Math.ceil(adHeightPx / density);
+                } else {
+                    callback.onFailure(messageToError(null));
+                    return;
+                }
+            } else {
+                callback.onFailure(messageToError(adSize + " is not supported"));
+                return;
+            }
         }
 
-        result.loadAd(adSize.getWidth(), adSize.getHeight());
-        return result;
+        if (DEBUG) {
+            Log.v(LOG_TAG, "loadBannerAd: " + adSize + " => " + adWidthDp + "x" + adHeightDp);
+        }
+
+        Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
+        initializeIfNecessary(context, extras.getAppId());
+        initTestAds(config);
+
+        new BannerRequest(context)
+                .setAdFormat(adSize.equals(AdSize.MEDIUM_RECTANGLE) ? BannerFormat.MREC : BannerFormat.BANNER)
+                .setAdSize(adWidthDp, adHeightDp)
+                .setAdPreferences(extras.getAdPreferences())
+                .load(new BannerRequest.Callback() {
+                    @Nullable
+                    MediationBannerAdCallback bannerAdCallback;
+
+                    @Override
+                    public void onFinished(@Nullable BannerCreator creator, @Nullable String error) {
+                        if (creator != null) {
+                            if (DEBUG) {
+                                Log.v(LOG_TAG, "loadBannerAd: onFinished: success");
+                            }
+
+                            final View view = creator.create(context, new BannerListener() {
+                                @Override
+                                public void onReceiveAd(View view) {
+                                    // none
+                                }
+
+                                @Override
+                                public void onFailedToReceiveAd(View view) {
+                                    // none
+                                }
+
+                                @Override
+                                public void onImpression(View view) {
+                                    if (DEBUG) {
+                                        Log.v(LOG_TAG, "loadBannerAd: onImpression");
+                                    }
+
+                                    if (bannerAdCallback != null) {
+                                        bannerAdCallback.reportAdImpression();
+                                    }
+                                }
+
+                                @Override
+                                public void onClick(View view) {
+                                    if (DEBUG) {
+                                        Log.v(LOG_TAG, "loadBannerAd: onClick");
+                                    }
+
+                                    if (bannerAdCallback != null) {
+                                        bannerAdCallback.reportAdClicked();
+                                    }
+                                }
+                            });
+
+                            bannerAdCallback = callback.onSuccess(new MediationBannerAd() {
+                                @NonNull
+                                @Override
+                                public View getView() {
+                                    return view;
+                                }
+                            });
+                        } else {
+                            if (DEBUG) {
+                                Log.w(LOG_TAG, "loadBannerAd: onFinished: error: " + error);
+                            }
+
+                            callback.onFailure(messageToError(error));
+                        }
+                    }
+                });
     }
     //endregion
 
@@ -663,12 +679,11 @@ public class StartappAdapter extends Adapter {
     @Override
     public void loadRewardedAd(
             @NonNull MediationRewardedAdConfiguration config,
-            @NonNull MediationAdLoadCallback<MediationRewardedAd,
-                    MediationRewardedAdCallback> loadCallback
+            @NonNull final MediationAdLoadCallback<MediationRewardedAd, MediationRewardedAdCallback> loadCallback
     ) {
-        StartAppSDK.setTestAdsEnabled(config.isTestRequest());
         Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
         initializeIfNecessary(config.getContext(), extras.getAppId());
+        initTestAds(config);
 
         rewarded = new StartAppAd(config.getContext());
         rewarded.setVideoListener(new VideoListener() {
@@ -765,16 +780,15 @@ public class StartappAdapter extends Adapter {
 
     @Override
     public void loadNativeAd(
-            @NonNull MediationNativeAdConfiguration config,
-            @NonNull MediationAdLoadCallback<UnifiedNativeAdMapper,
-                    MediationNativeAdCallback> callback
+            @NonNull final MediationNativeAdConfiguration config,
+            @NonNull final MediationAdLoadCallback<UnifiedNativeAdMapper, MediationNativeAdCallback> callback
     ) {
-        StartAppSDK.setTestAdsEnabled(config.isTestRequest());
         Extras extras = new Extras(config.getNativeAdOptions(), config.getMediationExtras(), config.getServerParameters());
         initializeIfNecessary(config.getContext(), extras.getAppId());
+        initTestAds(config);
 
         nativeAd = new StartAppNativeAd(config.getContext());
-        NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
+        final NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
 
         nativeAd.loadAd(prefs, new AdEventListener() {
             @Override
@@ -819,7 +833,7 @@ public class StartappAdapter extends Adapter {
                 if (!TextUtils.isEmpty(details.getImageUrl())) {
                     final Uri uri = Uri.parse(details.getImageUrl());
                     if (uri != null) {
-                        setImages(Collections.singletonList(new MappedImage(context, uri, details.getImageBitmap())));
+                        setImages(Collections.<NativeAd.Image>singletonList(new MappedImage(context, uri, details.getImageBitmap())));
                     }
                 }
 
