@@ -19,19 +19,13 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    // to resolve: Default interface methods are only supported starting with Android N (--min-api 24)
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
+
     buildFeatures {
         viewBinding true
     }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-
     //noinspection GradleDynamicVersion
     // implementation 'com.google.android.gms:play-services-ads:20+'
     //noinspection GradleDynamicVersion

@@ -1,12 +1,12 @@
-/**
+/*
  * Copyright 2020 StartApp Inc
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +15,8 @@
  */
 
 package com.startapp.example.admob;
+
+import static com.startapp.example.admob.BuildConfig.DEBUG;
 
 import android.os.Bundle;
 import android.view.View;
@@ -54,27 +56,41 @@ import com.startapp.sdk.adsbase.StartAppSDK;
 
 import java.util.List;
 
-
 public class MainActivity extends AppCompatActivity {
+    private static final boolean USE_TEST_SUITE = false;
+
+    @Nullable
+    private static Boolean initialized;
+
     private ActivityMainBinding viewBinding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         viewBinding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
 
-        MobileAds.initialize(this);
+        if (initialized == null) {
+            initialized = false;
 
-        // DON'T ADD THIS LINE TO YOUR REAL PROJECT, IT ENABLES TEST ADS WHICH GIVE NO REVENUE
-        StartAppSDK.setTestAdsEnabled(true);
-        // -----------------------------------------------------------------------------------
+            MobileAds.initialize(this, status -> {
+                initialized = true;
 
-        initBanner();
-        initMrec();
+                Toast.makeText(this, "Initialization complete", Toast.LENGTH_SHORT).show();
 
-        // uncomment if you want to run AdMob's Test Suite
-        // MediationTestSuite.launch(this);
+                initBanner();
+                initMrec();
+
+                if (USE_TEST_SUITE) {
+                    MediationTestSuite.launch(MainActivity.this);
+                }
+            });
+
+            if (DEBUG) {
+                StartAppSDK.setTestAdsEnabled(true);
+            }
+        }
     }
 
     //region Banner
@@ -147,6 +163,10 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras bundle
      */
     public void onClickLoadBanner(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         if (banner == null) {
             return;
         }
@@ -234,6 +254,10 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras bundle
      */
     public void onClickLoadMrec(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         if (mrec == null) {
             return;
         }
@@ -262,6 +286,10 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadInterstitial(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("interstitialTagFromAdRequest")
@@ -332,11 +360,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClickShowInterstitial(@NonNull View view) {
-        view.setEnabled(false);
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
 
         if (interstitial == null) {
             return;
         }
+
+        view.setEnabled(false);
 
         interstitial.show(this);
     }
@@ -353,6 +385,10 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadRewarded(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("rewardedTagFromAdRequest")
@@ -380,11 +416,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClickShowRewarded(@NonNull View view) {
-        view.setEnabled(false);
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
 
         if (rewarded == null) {
             return;
         }
+
+        view.setEnabled(false);
 
         rewarded.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
@@ -430,6 +470,10 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void onClickLoadNative(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         // clear previous ad
         viewBinding.nativeAdPlaceholder.removeAllViews();
 
@@ -485,6 +529,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onClickShowNative(@NonNull View view) {
+        if (!Boolean.TRUE.equals(initialized)) {
+            return;
+        }
+
         final NativeAdUnifiedBinding adUnifiedBinding = NativeAdUnifiedBinding.inflate(getLayoutInflater());
         populateNativeAdView(adUnifiedBinding.nativeView, adUnifiedBinding);
 
