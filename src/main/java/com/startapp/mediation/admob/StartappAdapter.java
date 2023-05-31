@@ -376,9 +376,8 @@ public class StartappAdapter extends Adapter {
         }
 
         if (!isInitialized.getAndSet(true)) {
-            StartAppAd.disableSplash();
             StartAppAd.enableConsent(context, false);
-            StartAppSDK.addWrapper(context, "AdMob", BuildConfig.VERSION_NAME);
+            StartAppSDK.enableMediationMode(context, "AdMob", BuildConfig.VERSION_NAME);
             StartAppSDK.init(context, appId, false);
         }
     }

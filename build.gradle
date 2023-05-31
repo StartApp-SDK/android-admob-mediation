@@ -41,7 +41,7 @@ dependencies {
     // noinspection GradleDependency
     api 'com.google.android.gms:play-services-ads:[21,)'
     // noinspection GradleDependency
-    api 'com.startapp:inapp-sdk:[4.10,5)'
+    api 'com.startapp:inapp-sdk:[4.11,5)'
 }
 
 apply from: 'publish-mavencentral.gradle'
