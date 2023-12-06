@@ -19,7 +19,7 @@ allprojects {
 }
 
 android {
-    compileSdkVersion 33
+    compileSdk 33
 
     defaultConfig {
         minSdkVersion 19
@@ -39,7 +39,7 @@ android {
 
 dependencies {
     // noinspection GradleDependency
-    api 'com.google.android.gms:play-services-ads:[21,)'
+    api 'com.google.android.gms:play-services-ads:[22,)'
     // noinspection GradleDependency
     api 'com.startapp:inapp-sdk:[4.11,5)'
 }
