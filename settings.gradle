@@ -1,7 +1,0 @@
-include ':app'
-
-//include ':admob-mediation'
-//project(':admob-mediation').projectDir = new File('../android-admob-mediation')
-
-//include ':inapp-sdk'
-//project(':inapp-sdk').projectDir = new File('../android-inapp')
