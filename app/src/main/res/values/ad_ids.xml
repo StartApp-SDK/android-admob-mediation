@@ -1,0 +1,12 @@
+<resources>
+    <string name="appId">ca-app-pub-4237896427435354~2081366453</string>
+    <!-- no_mediation_interstitial: ca-app-pub-4237896427435354/6252717199 -->
+    <string name="interstitialId">ca-app-pub-4237896427435354/7549315550</string>
+    <!-- no_mediation_banner: ca-app-pub-4237896427435354/7233614611 -->
+    <string name="bannerId">ca-app-pub-4237896427435354/3975836391</string>
+    <string name="mrecId">ca-app-pub-4237896427435354/3333401580</string>
+    <!-- no_mediation_rewarded: ca-app-pub-4237896427435354/1704728403 -->
+    <string name="rewardedId">ca-app-pub-4237896427435354/3993756493</string>
+    <!-- no_mediation_nativeId: ca-app-pub-4237896427435354/6515029932 -->
+    <string name="nativeId">ca-app-pub-4237896427435354/4302971589</string>
+</resources>

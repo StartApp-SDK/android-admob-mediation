@@ -8,18 +8,25 @@ def OSSRH_USERNAME = "ossrhUsername"
 def OSSRH_PASSWORD = "ossrhPassword"
 def SONATYPE_STAGING_PROFILE_ID = "sonatypeStagingProfileId"
 
+android {
+    publishing {
+        singleVariant('release')
+    }
+}
+
 // stub for sources, required by MavenCentral
-task sourcesJar(type: Jar) {
+tasks.register('sourcesJar', Jar) {
     archiveClassifier.set('sources')
     from file('build/intermediates/aar_main_jar/release/classes.jar')
 }
 
 // stub for java doc, required by MavenCentral
-task javadoc(type: Javadoc) {
+tasks.register('javadoc', Javadoc) {
     failOnError false
 }
 
-task javadocJar(type: Jar, dependsOn: javadoc) {
+tasks.register('javadocJar', Jar) {
+    dependsOn javadoc
     archiveClassifier.set('javadoc')
     from javadoc.destinationDir
 }

@@ -1,0 +1,27 @@
+plugins {
+    alias(libs.plugins.android.library)
+}
+
+apply from: "$rootDir/publish-mavencentral.gradle"
+
+android {
+    namespace 'com.startapp.mediation.admob'
+
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+
+        buildConfigField 'String', 'VERSION_NAME', "\"$VERSION_NAME\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+}
+
+dependencies {
+    api libs.play.services.ads
+    api libs.startio.sdk
+}

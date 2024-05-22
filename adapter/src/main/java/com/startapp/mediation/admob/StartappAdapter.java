@@ -1,6 +1,7 @@
 package com.startapp.mediation.admob;
 
 import static com.startapp.mediation.admob.BuildConfig.DEBUG;
+import static com.startapp.mediation.admob.BuildConfig.VERSION_NAME;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -21,7 +22,7 @@ import androidx.annotation.Nullable;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
-import com.google.android.gms.ads.formats.NativeAd;
+import com.google.android.gms.ads.VersionInfo;
 import com.google.android.gms.ads.mediation.Adapter;
 import com.google.android.gms.ads.mediation.InitializationCompleteCallback;
 import com.google.android.gms.ads.mediation.MediationAdConfiguration;
@@ -38,8 +39,8 @@ import com.google.android.gms.ads.mediation.MediationNativeAdConfiguration;
 import com.google.android.gms.ads.mediation.MediationRewardedAd;
 import com.google.android.gms.ads.mediation.MediationRewardedAdCallback;
 import com.google.android.gms.ads.mediation.MediationRewardedAdConfiguration;
-import com.google.android.gms.ads.mediation.UnifiedNativeAdMapper;
-import com.google.android.gms.ads.VersionInfo;
+import com.google.android.gms.ads.mediation.NativeAdMapper;
+import com.google.android.gms.ads.nativead.NativeAd;
 import com.google.android.gms.ads.nativead.NativeAdOptions;
 import com.google.android.gms.ads.rewarded.RewardItem;
 import com.startapp.sdk.ads.banner.BannerCreator;
@@ -56,7 +57,6 @@ import com.startapp.sdk.adsbase.StartAppAd;
 import com.startapp.sdk.adsbase.StartAppSDK;
 import com.startapp.sdk.adsbase.adlisteners.AdDisplayListener;
 import com.startapp.sdk.adsbase.adlisteners.AdEventListener;
-import com.startapp.sdk.adsbase.adlisteners.VideoListener;
 import com.startapp.sdk.adsbase.model.AdPreferences;
 
 import org.json.JSONException;
@@ -95,7 +95,8 @@ public class StartappAdapter extends Adapter {
         private static final String IS_3D_BANNER = "is3DBanner";
         private static final String NATIVE_IMAGE_SIZE = "nativeImageSize";
         private static final String NATIVE_SECONDARY_IMAGE_SIZE = "nativeSecondaryImageSize";
-        private static final String APP_ID = "startappAppId";
+        private static final String APP_ID = "appId";
+        private static final String APP_ID_LEGACY = "startappAppId";
 
         @NonNull
         private final AdPreferences adPreferences;
@@ -243,8 +244,8 @@ public class StartappAdapter extends Adapter {
                         }
                     }
 
-                    if (json.has(APP_ID)) {
-                        appId = json.getString(APP_ID);
+                    if (hasAppId(json)) {
+                        appId = resolveAppId(json);
                     }
                 } catch (JSONException e) {
                     Log.e(LOG_TAG, "Could not parse malformed JSON: " + jsonParameter);
@@ -339,7 +340,11 @@ public class StartappAdapter extends Adapter {
     //region Utils
     private static final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
-    private static void initializeIfNecessary(@NonNull Context context, @Nullable String appId) {
+    private static void initializeIfNecessary(
+            @NonNull Context context,
+            @Nullable String appId,
+            @Nullable InitializationCompleteCallback callback
+    ) {
         if (TextUtils.isEmpty(appId)) {
             Log.e("start.io SDK", "App ID not found\n" +
                     "+-----------------------------------------------------------------------+\n" +
@@ -352,13 +357,27 @@ public class StartappAdapter extends Adapter {
                     "|                                                                       |\n" +
                     "| https://support.start.io/hc/en-us/articles/360005100893-AdMob-Adapter |\n" +
                     "+-----------------------------------------------------------------------+\n");
+
+            if (callback != null) {
+                callback.onInitializationFailed("App ID not found, see logcat");
+            }
             return;
         }
 
         if (!isInitialized.getAndSet(true)) {
-            StartAppAd.enableConsent(context, false);
-            StartAppSDK.enableMediationMode(context, "AdMob", BuildConfig.VERSION_NAME);
-            StartAppSDK.init(context, appId, false);
+            StartAppSDK.enableMediationMode(context, "AdMob", VERSION_NAME);
+            StartAppSDK.initParams(context, appId)
+                    .setReturnAdsEnabled(false)
+                    .setCallback(() -> {
+                        if (callback != null) {
+                            callback.onInitializationSucceeded();
+                        }
+                    })
+                    .init();
+        } else {
+            if (callback != null) {
+                callback.onInitializationFailed("Already initialized");
+            }
         }
     }
 
@@ -382,52 +401,49 @@ public class StartappAdapter extends Adapter {
             @NonNull final MediationAdLoadCallback<MediationInterstitialAd, MediationInterstitialAdCallback> callback
     ) {
         Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
-        initializeIfNecessary(config.getContext(), extras.getAppId());
+        initializeIfNecessary(config.getContext(), extras.getAppId(), null);
         initTestAds(config);
 
         interstitial = new StartAppAd(config.getContext());
         AdEventListener loadListener = new AdEventListener() {
             @Override
             public void onReceiveAd(@NonNull Ad ad) {
-                interstitialListener = callback.onSuccess(new MediationInterstitialAd() {
-                    @Override
-                    public void showAd(@NonNull Context context) {
-                        if (interstitial == null) {
-                            return;
+                interstitialListener = callback.onSuccess(context -> {
+                    if (interstitial == null) {
+                        return;
+                    }
+
+                    interstitial.showAd(new AdDisplayListener() {
+                        @Override
+                        public void adHidden(Ad ad1) {
+                            if (interstitialListener != null) {
+                                interstitialListener.onAdClosed();
+                            }
                         }
 
-                        interstitial.showAd(new AdDisplayListener() {
-                            @Override
-                            public void adHidden(Ad ad) {
-                                if (interstitialListener != null) {
-                                    interstitialListener.onAdClosed();
-                                }
+                        @Override
+                        public void adDisplayed(Ad ad1) {
+                            if (interstitialListener != null) {
+                                interstitialListener.onAdOpened();
+                                interstitialListener.reportAdImpression();
                             }
+                        }
 
-                            @Override
-                            public void adDisplayed(Ad ad) {
-                                if (interstitialListener != null) {
-                                    interstitialListener.onAdOpened();
-                                    interstitialListener.reportAdImpression();
-                                }
+                        @Override
+                        public void adClicked(Ad ad1) {
+                            if (interstitialListener != null) {
+                                interstitialListener.reportAdClicked();
                             }
+                        }
 
-                            @Override
-                            public void adClicked(Ad ad) {
-                                if (interstitialListener != null) {
-                                    interstitialListener.reportAdClicked();
-                                }
+                        @Override
+                        public void adNotDisplayed(Ad ad1) {
+                            if (interstitialListener != null) {
+                                String message = ad1 != null ? ad1.getErrorMessage() : "ad is null";
+                                interstitialListener.onAdFailedToShow(messageToError(message));
                             }
-
-                            @Override
-                            public void adNotDisplayed(Ad ad) {
-                                if (interstitialListener != null) {
-                                    String message = ad != null ? ad.getErrorMessage() : "ad is null";
-                                    interstitialListener.onAdFailedToShow(messageToError(message));
-                                }
-                            }
-                        });
-                    }
+                        }
+                    });
                 });
             }
 
@@ -484,7 +500,7 @@ public class StartappAdapter extends Adapter {
         }
 
         Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
-        initializeIfNecessary(context, extras.getAppId());
+        initializeIfNecessary(context, extras.getAppId(), null);
         initTestAds(config);
 
         new BannerRequest(context)
@@ -574,8 +590,8 @@ public class StartappAdapter extends Adapter {
             if (jsonParameter != null) {
                 try {
                     JSONObject json = new JSONObject(jsonParameter);
-                    if (json.has(Extras.APP_ID)) {
-                        appId = json.getString(Extras.APP_ID);
+                    if (hasAppId(json)) {
+                        appId = resolveAppId(json);
                         break;
                     }
                 } catch (JSONException e) {
@@ -584,14 +600,28 @@ public class StartappAdapter extends Adapter {
             }
         }
 
-        initializeIfNecessary(context, appId);
-        completeCallback.onInitializationSucceeded();
+        initializeIfNecessary(context, appId, completeCallback);
+    }
+
+    private static boolean hasAppId(@NonNull JSONObject json) {
+        return json.has(Extras.APP_ID) || json.has(Extras.APP_ID_LEGACY);
+    }
+
+    @NonNull
+    private static String resolveAppId(@NonNull JSONObject json) throws JSONException {
+        String result = json.optString(Extras.APP_ID);
+
+        if (result.isEmpty()) {
+            result = json.getString(Extras.APP_ID_LEGACY);
+        }
+
+        return result;
     }
 
     @Override
     @NonNull
     public VersionInfo getVersionInfo() {
-        final String[] parts = BuildConfig.VERSION_NAME.split("\\.");
+        final String[] parts = VERSION_NAME.split("\\.");
         if (parts.length < 3) {
             return new VersionInfo(0, 0, 1);
         }
@@ -606,27 +636,7 @@ public class StartappAdapter extends Adapter {
     @Override
     @NonNull
     public VersionInfo getSDKVersionInfo() {
-        String version = null;
-
-        try {
-            version = (String) StartAppSDK.class.getDeclaredMethod("getVersion").invoke(null);
-        } catch (Throwable ex) {
-            // ignore
-        }
-
-        if (version == null) {
-            try {
-                version = (String) Class.forName("com.startapp.sdk.GeneratedConstants")
-                        .getDeclaredField("INAPP_VERSION")
-                        .get(null);
-            } catch (Throwable ex) {
-                // ignore
-            }
-        }
-
-        if (version == null) {
-            return new VersionInfo(0, 0, 1);
-        }
+        String version = StartAppSDK.getVersion();
 
         final String[] parts = version.split("\\.");
         if (parts.length < 3) {
@@ -661,66 +671,60 @@ public class StartappAdapter extends Adapter {
             @NonNull final MediationAdLoadCallback<MediationRewardedAd, MediationRewardedAdCallback> loadCallback
     ) {
         Extras extras = new Extras(config.getMediationExtras(), config.getServerParameters());
-        initializeIfNecessary(config.getContext(), extras.getAppId());
+        initializeIfNecessary(config.getContext(), extras.getAppId(), null);
         initTestAds(config);
 
         rewarded = new StartAppAd(config.getContext());
-        rewarded.setVideoListener(new VideoListener() {
-            @Override
-            public void onVideoCompleted() {
-                if (rewardedListener != null) {
-                    rewardedListener.onVideoComplete();
-                    rewardedListener.onUserEarnedReward(new StartappRewardItem());
-                }
+        rewarded.setVideoListener(() -> {
+            if (rewardedListener != null) {
+                rewardedListener.onVideoComplete();
+                rewardedListener.onUserEarnedReward(new StartappRewardItem());
             }
         });
 
         AdEventListener loadListener = new AdEventListener() {
             @Override
             public void onReceiveAd(@NonNull Ad ad) {
-                rewardedListener = loadCallback.onSuccess(new MediationRewardedAd() {
-                    @Override
-                    public void showAd(@NonNull Context context) {
-                        if (rewarded == null) {
-                            return;
+                rewardedListener = loadCallback.onSuccess(context -> {
+                    if (rewarded == null) {
+                        return;
+                    }
+
+                    rewarded.showAd(new AdDisplayListener() {
+                        @Override
+                        public void adHidden(Ad ad1) {
+                            if (rewardedListener != null) {
+                                rewardedListener.onAdClosed();
+                            }
                         }
 
-                        rewarded.showAd(new AdDisplayListener() {
-                            @Override
-                            public void adHidden(Ad ad) {
-                                if (rewardedListener != null) {
-                                    rewardedListener.onAdClosed();
-                                }
+                        @Override
+                        public void adDisplayed(Ad ad1) {
+                            if (rewardedListener != null) {
+                                rewardedListener.onAdOpened();
+                                rewardedListener.onVideoStart();
+                                rewardedListener.reportAdImpression();
                             }
+                        }
 
-                            @Override
-                            public void adDisplayed(Ad ad) {
-                                if (rewardedListener != null) {
-                                    rewardedListener.onAdOpened();
-                                    rewardedListener.onVideoStart();
-                                    rewardedListener.reportAdImpression();
-                                }
+                        @Override
+                        public void adClicked(Ad ad1) {
+                            if (rewardedListener != null) {
+                                rewardedListener.reportAdClicked();
                             }
+                        }
 
-                            @Override
-                            public void adClicked(Ad ad) {
-                                if (rewardedListener != null) {
-                                    rewardedListener.reportAdClicked();
-                                }
+                        @Override
+                        public void adNotDisplayed(Ad ad1) {
+                            if (rewardedListener != null) {
+                                String message = ad1.getErrorMessage();
+                                rewardedListener.onAdFailedToShow(
+                                        new AdError(0,
+                                                message != null ? message : "adNotDisplayed",
+                                                "io.start"));
                             }
-
-                            @Override
-                            public void adNotDisplayed(Ad ad) {
-                                if (rewardedListener != null) {
-                                    String message = ad.getErrorMessage();
-                                    rewardedListener.onAdFailedToShow(
-                                            new AdError(0,
-                                                    message != null ? message : "adNotDisplayed",
-                                                    "io.start"));
-                                }
-                            }
-                        });
-                    }
+                        }
+                    });
                 });
             }
 
@@ -758,12 +762,12 @@ public class StartappAdapter extends Adapter {
     private MediationNativeAdCallback nativeListener;
 
     @Override
-    public void loadNativeAd(
-            @NonNull final MediationNativeAdConfiguration config,
-            @NonNull final MediationAdLoadCallback<UnifiedNativeAdMapper, MediationNativeAdCallback> callback
+    public void loadNativeAdMapper(
+            @NonNull MediationNativeAdConfiguration config,
+            @NonNull MediationAdLoadCallback<NativeAdMapper, MediationNativeAdCallback> callback
     ) {
         Extras extras = new Extras(config.getNativeAdOptions(), config.getMediationExtras(), config.getServerParameters());
-        initializeIfNecessary(config.getContext(), extras.getAppId());
+        initializeIfNecessary(config.getContext(), extras.getAppId(), null);
         initTestAds(config);
 
         nativeAd = new StartAppNativeAd(config.getContext());
@@ -791,7 +795,7 @@ public class StartappAdapter extends Adapter {
         });
     }
 
-    private class NativeMapper extends UnifiedNativeAdMapper {
+    private class NativeMapper extends NativeAdMapper {
         @NonNull
         private final NativeAdDetails details;
 

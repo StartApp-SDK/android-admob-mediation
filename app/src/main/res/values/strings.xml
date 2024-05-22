@@ -1,15 +1,16 @@
 <resources>
-    <string name="app_name">AdMob-Startapp</string>
-
-    <string name="appId">ca-app-pub-4237896427435354~2081366453</string>
-    <!-- no_mediation_interstitial: ca-app-pub-4237896427435354/6252717199 -->
-    <string name="interstitialId">ca-app-pub-4237896427435354/7549315550</string>
-    <!-- no_mediation_banner: ca-app-pub-4237896427435354/7233614611 -->
-    <string name="bannerId">ca-app-pub-4237896427435354/3975836391</string>
-    <string name="mrecId">ca-app-pub-4237896427435354/3333401580</string>
-    <!-- no_mediation_rewarded: ca-app-pub-4237896427435354/1704728403 -->
-    <string name="rewardedId">ca-app-pub-4237896427435354/3993756493</string>
-    <!-- no_mediation_nativeId: ca-app-pub-4237896427435354/6515029932 -->
-    <string name="nativeId">ca-app-pub-4237896427435354/4302971589</string>
-
+    <string name="app_name">AdMob Start.io Adapter</string>
+    <string name="load_interstitial">Load Interstitial</string>
+    <string name="show_interstitial">Show Interstitial</string>
+    <string name="load_rewarded">Load Rewarded</string>
+    <string name="show_rewarded">Show Rewarded</string>
+    <string name="load_banner">Load Banner</string>
+    <string name="show_banner">Show Banner</string>
+    <string name="hide_banner">Hide Banner</string>
+    <string name="load_mrec">Load Medium</string>
+    <string name="show_mrec">Show Medium</string>
+    <string name="hide_mrec">Hide Medium</string>
+    <string name="load_native">Load Native</string>
+    <string name="show_native">Show Native</string>
+    <string name="hide_native">Hide Native</string>
 </resources>

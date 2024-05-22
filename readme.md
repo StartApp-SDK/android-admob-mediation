@@ -1,6 +1,10 @@
-# StartApp mediation adapter for AdMob
+# Start.io (StartApp) mediation adapter for AdMob
 
-This library lets you serve ads to your apps from StartApp network via AdMob integration.
+This library lets you serve ads to your apps from Start.io (StartApp) network via AdMob integration.
+
+## Demo app
+
+The demo [app](/app) is fully workable. Change ad unit IDs in file [ad_ids.xml](/app/src/main/res/values/ad_ids.xml) in order to try your integration.
 
 ## Basic integration steps
 
@@ -17,8 +21,8 @@ This library lets you serve ads to your apps from StartApp network via AdMob int
 3. Fill the fields `Class Name` and `Parameter`, then click `DONE`.
 
 ```
-Class Name : com.startapp.mediation.admob.StartappAdapter
-Parameter  : { startappAppId : 'YOUR_APP_ID' }
+Class Name : io.start.mediation.admob.StartIoAdapter
+Parameter  : { appId : 'YOUR_APP_ID' }
 ```
 
 ![Step 3](/images/step3.png)
@@ -29,15 +33,14 @@ Parameter  : { startappAppId : 'YOUR_APP_ID' }
 
 ### Project
 
-5. Add dependency on StartApp AdMob Mediation library
+5. Add dependency on Start.io (StartApp) AdMob Mediation library
 
 ```
 dependencies {
-    // noinspection GradleDependency
-    implementation 'com.startapp:admob-mediation:2.+'
+    implementation 'com.startapp:admob-mediation:3.+'
 }
 ```
 
-6. Use [AdMob Mediation Test Suite][1] to make sure StartApp is working correctly
+6. Use [Ad inspector][1] to make sure your integration is working correctly
 
-[1]: https://developers.google.com/admob/android/mediation-test-suite
+[1]: https://developers.google.com/admob/android/ad-inspector

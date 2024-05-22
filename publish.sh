@@ -1,2 +1,0 @@
-./gradlew publishReleasePublicationToSonatypeRepository
-# ./gradlew publishReleasePublicationToMavenLocal
