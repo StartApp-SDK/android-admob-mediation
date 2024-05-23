@@ -52,7 +52,7 @@ Pass `adTag` to the parameter: `{ appId : 'YOUR_APP_ID', adTag: 'YOUR_AD_TAG' }`
 
 ```
 dependencies {
-    implementation 'com.startapp:admob-mediation:3.+'
+    implementation 'io.start:admob-mediation:3.+'
 }
 ```
 
