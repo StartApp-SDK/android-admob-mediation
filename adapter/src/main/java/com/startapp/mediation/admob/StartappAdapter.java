@@ -413,7 +413,7 @@ public class StartappAdapter extends Adapter {
                         return;
                     }
 
-                    interstitial.showAd(new AdDisplayListener() {
+                    boolean shown = interstitial.showAd(new AdDisplayListener() {
                         @Override
                         public void adHidden(Ad ad1) {
                             if (interstitialListener != null) {
@@ -424,7 +424,6 @@ public class StartappAdapter extends Adapter {
                         @Override
                         public void adDisplayed(Ad ad1) {
                             if (interstitialListener != null) {
-                                interstitialListener.onAdOpened();
                                 interstitialListener.reportAdImpression();
                             }
                         }
@@ -444,6 +443,16 @@ public class StartappAdapter extends Adapter {
                             }
                         }
                     });
+
+                    if (shown) {
+                        if (interstitialListener != null) {
+                            interstitialListener.onAdOpened();
+                        }
+                    } else {
+                        if (interstitialListener != null) {
+                            interstitialListener.onAdFailedToShow(messageToError(null));
+                        }
+                    }
                 });
             }
 
@@ -690,7 +699,7 @@ public class StartappAdapter extends Adapter {
                         return;
                     }
 
-                    rewarded.showAd(new AdDisplayListener() {
+                    boolean shown = rewarded.showAd(new AdDisplayListener() {
                         @Override
                         public void adHidden(Ad ad1) {
                             if (rewardedListener != null) {
@@ -701,8 +710,6 @@ public class StartappAdapter extends Adapter {
                         @Override
                         public void adDisplayed(Ad ad1) {
                             if (rewardedListener != null) {
-                                rewardedListener.onAdOpened();
-                                rewardedListener.onVideoStart();
                                 rewardedListener.reportAdImpression();
                             }
                         }
@@ -717,14 +724,22 @@ public class StartappAdapter extends Adapter {
                         @Override
                         public void adNotDisplayed(Ad ad1) {
                             if (rewardedListener != null) {
-                                String message = ad1.getErrorMessage();
-                                rewardedListener.onAdFailedToShow(
-                                        new AdError(0,
-                                                message != null ? message : "adNotDisplayed",
-                                                "io.start"));
+                                String message = ad1 != null ? ad1.getErrorMessage() : "ad is null";
+                                rewardedListener.onAdFailedToShow(messageToError(message));
                             }
                         }
                     });
+
+                    if (shown) {
+                        if (rewardedListener != null) {
+                            rewardedListener.onAdOpened();
+                            rewardedListener.onVideoStart();
+                        }
+                    } else {
+                        if (rewardedListener != null) {
+                            rewardedListener.onAdFailedToShow(messageToError(null));
+                        }
+                    }
                 });
             }
 
@@ -773,7 +788,8 @@ public class StartappAdapter extends Adapter {
         nativeAd = new StartAppNativeAd(config.getContext());
         final NativeAdPreferences prefs = (NativeAdPreferences) extras.getAdPreferences();
 
-        nativeAd.loadAd(prefs, new AdEventListener() {
+        nativeAd.setPreferences(prefs);
+        nativeAd.loadAd(new AdEventListener() {
             @Override
             public void onReceiveAd(@NonNull Ad ad) {
                 ArrayList<NativeAdDetails> ads = nativeAd.getNativeAds();
