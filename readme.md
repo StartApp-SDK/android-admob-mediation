@@ -4,7 +4,7 @@ This library lets you serve ads to your apps from Start.io (StartApp) network vi
 
 ## Demo app
 
-The demo [app](/app) is fully workable. Change ad unit IDs in [ad_ids.xml](/app/src/main/res/values/ad_ids.xml), then build an app and use [Ad inspector][1] to make sure your integration is working correctly.
+The [demo app](/example) is fully workable. Change ad unit IDs in [ad_ids.xml](/example/src/main/res/values/ad_ids.xml), then build an app and use [Ad inspector][1] to make sure your integration is working correctly.
 
 ## Integration steps
 

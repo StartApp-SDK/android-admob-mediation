@@ -22,5 +22,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Start.io (StartApp) AdMob Mediation"
-include ':app'
 include ':adapter'
+include ':example'
