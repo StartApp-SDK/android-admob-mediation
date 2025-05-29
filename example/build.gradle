@@ -1,17 +1,17 @@
 plugins {
-    alias(libs.plugins.android.application)
+    id 'com.android.application'
 }
 
 android {
     namespace 'com.startapp.mediation.admob.example'
 
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.startapp.mediation.admob.example'
 
-        minSdk 21
-        targetSdk 34
+        minSdk 23
+        targetSdk 36
 
         versionCode 1
         versionName '1.0'
@@ -26,6 +26,6 @@ android {
 }
 
 dependencies {
-    implementation libs.appcompat
+    implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation project(':adapter')
 }

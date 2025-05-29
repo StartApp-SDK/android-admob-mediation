@@ -56,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        setTitle("AdMob " + MobileAds.getVersion() + " - Start.io " + StartAppSDK.getVersion());
+
         setContentView(R.layout.activity_main);
 
         View loadInterstitial = findViewById(R.id.load_interstitial);

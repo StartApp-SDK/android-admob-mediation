@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    tools:ignore="ButtonStyle">
+    android:fitsSystemWindows="true"
+    tools:ignore="ButtonStyle,HardcodedText">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -23,16 +24,20 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/load_interstitial" />
+                android:maxLines="1"
+                android:text="Load Interstitial" />
 
             <Button
                 android:id="@+id/show_interstitial"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/show_interstitial" />
+                android:maxLines="1"
+                android:text="Show Interstitial" />
 
         </LinearLayout>
 
@@ -46,16 +51,20 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/load_rewarded" />
+                android:maxLines="1"
+                android:text="Load Rewarded" />
 
             <Button
                 android:id="@+id/show_rewarded"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/show_rewarded" />
+                android:maxLines="1"
+                android:text="Show Rewarded" />
         </LinearLayout>
 
         <LinearLayout
@@ -68,24 +77,30 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/load_banner" />
+                android:maxLines="1"
+                android:text="Load Banner" />
 
             <Button
                 android:id="@+id/show_banner"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/show_banner" />
+                android:maxLines="1"
+                android:text="Show Banner" />
 
             <Button
                 android:id="@+id/hide_banner"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/hide_banner" />
+                android:maxLines="1"
+                android:text="Hide Banner" />
         </LinearLayout>
 
         <LinearLayout
@@ -98,24 +113,30 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/load_mrec" />
+                android:maxLines="1"
+                android:text="Load Mrec" />
 
             <Button
                 android:id="@+id/show_mrec"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/show_mrec" />
+                android:maxLines="1"
+                android:text="Show Mrec" />
 
             <Button
                 android:id="@+id/hide_mrec"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/hide_mrec" />
+                android:maxLines="1"
+                android:text="Hide Mrec" />
         </LinearLayout>
 
         <LinearLayout
@@ -128,24 +149,30 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/load_native" />
+                android:maxLines="1"
+                android:text="Load Native" />
 
             <Button
                 android:id="@+id/show_native"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/show_native" />
+                android:maxLines="1"
+                android:text="Show Native" />
 
             <Button
                 android:id="@+id/hide_native"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
                 android:enabled="false"
-                android:text="@string/hide_native" />
+                android:maxLines="1"
+                android:text="Hide Native" />
         </LinearLayout>
 
         <View

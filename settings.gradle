@@ -21,6 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Start.io (StartApp) AdMob Mediation"
+rootProject.name = "AdMob - Start.io"
 include ':adapter'
 include ':example'

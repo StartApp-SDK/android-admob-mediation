@@ -1,19 +1,17 @@
 plugins {
-    alias(libs.plugins.android.library)
+    id 'com.android.library'
 }
-
-apply from: "$rootDir/publish-mavencentral.gradle"
 
 android {
     namespace 'com.startapp.mediation.admob'
 
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
-        minSdk 21
-        targetSdk 34
+        minSdk 23
+        targetSdk 36
 
-        buildConfigField 'String', 'VERSION_NAME', "\"$VERSION_NAME\""
+        buildConfigField 'String', 'VERSION_NAME', "\"$versionName\""
     }
 
     buildFeatures {
@@ -22,6 +20,8 @@ android {
 }
 
 dependencies {
-    api libs.play.services.ads
-    api libs.startio.sdk
+    api 'com.google.android.gms:play-services-ads:[24,25)'
+    api 'com.startapp:inapp-sdk:[5.2.2,6)'
 }
+
+apply from: 'https://raw.githubusercontent.com/StartApp-SDK/sonatype-central-publish/refs/heads/main/sonatype-central-publish.gradle'

@@ -12,7 +12,7 @@ The [demo app](/example) is fully workable. Change ad unit IDs in [ad_ids.xml](/
 
 ```
 dependencies {
-    implementation 'io.start:admob-mediation:3.+'
+    implementation 'io.start:admob-mediation:3.1+'
 }
 ```
 
