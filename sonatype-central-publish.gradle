@@ -1,0 +1,473 @@
+/*
+ * Gradle script for publishing an Android library to Maven Central
+ * via the Sonatype Central Publishing Portal (central.sonatype.com).
+ *
+ * Source: https://github.com/StartApp-SDK/sonatype-central-publish
+ */
+
+//file:noinspection ConfigurationAvoidance
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+def SIGNING_KEY_ID = "signing.keyId"
+def SIGNING_PASSWORD = "signing.password"
+def SIGNING_SECRET_KEY_RING_FILE = "signing.secretKeyRingFile"
+def OSSRH_USERNAME = "ossrhUsername"
+def OSSRH_PASSWORD = "ossrhPassword"
+def SONATYPE_STAGING_PROFILE_ID = "sonatypeStagingProfileId"
+
+android {
+    publishing {
+        singleVariant('release')
+    }
+}
+
+task exportPublicSources {
+    def inputDir = file('src/main/java')
+    def outputDir = file('build/generated/public_sources')
+
+    if (inputDir.exists()) {
+        inputs.dir(inputDir)
+    }
+
+    outputs.dir(outputDir)
+
+    doLast {
+        exposeSources(inputDir, outputDir)
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: exportPublicSources) {
+    archiveClassifier.set('sources')
+    from exportPublicSources.outputs
+}
+
+task javadoc(type: Javadoc, dependsOn: exportPublicSources) {
+    dependsOn(tasks.matching {
+        it.name == 'compileReleaseSources'
+    })
+
+    source = exportPublicSources.outputs
+
+    // AGP 9: android.getSdkDirectory() was removed; the platform android.jar is
+    // exposed via the SDK components' boot classpath
+    classpath += project.files(androidComponents.sdkComponents.bootClasspath)
+
+    // AGP 9: the android.libraryVariants API was removed; resolve dependency
+    // symbols for javadoc via the release compile classpath, looked up lazily
+    // because the configuration is created after this script is applied.
+    // The configuration itself exposes several equally-compatible variants
+    // (android-classes-jar, jar, r-class-jar, ...), so an explicit artifactType
+    // request is needed to avoid a variant ambiguity error; 'android-classes-jar'
+    // is what AGP's own compile task resolves to for both project and external deps.
+    classpath += project.files(provider {
+        def config = configurations.findByName('releaseCompileClasspath')
+
+        config == null ? project.files() : config.incoming.artifactView {
+            attributes {
+                attribute(Attribute.of('artifactType', String), 'android-classes-jar')
+            }
+            lenient(true)
+        }.files
+    })
+
+    // TODO find a better way to resolve this path
+    classpath += files('build/intermediates/javac/release/compileReleaseJavaWithJavac/classes')
+
+    // AGP 9 built-in Kotlin: classes compiled from .kt sources are emitted by
+    // the built-in kotlinc task and are absent from releaseCompileClasspath, so
+    // javadoc can't resolve imports of Kotlin types (e.g. VideoDownloader).
+    // Depend on that task and add its output to the classpath; resolved lazily
+    // because the task is created after this script is applied.
+    dependsOn(tasks.matching {
+        it.name == 'compileReleaseKotlin'
+    })
+
+    classpath += project.files(provider {
+        def kotlinCompile = tasks.findByName('compileReleaseKotlin')
+        kotlinCompile != null ? kotlinCompile.outputs.files : project.files()
+    })
+
+    doLast {
+        if (destinationDir.listFiles().length < 1) {
+            throw new IllegalStateException('javadoc files were not built')
+        }
+    }
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    archiveClassifier.set('javadoc')
+    from files(javadoc.destinationDir)
+
+    doLast {
+        if (!archiveFile.isPresent()) {
+            throw new IllegalStateException('javadoc.jar was not built')
+        }
+
+        if (archiveFile.get().getAsFile().length() < 100) {
+            throw new IllegalStateException('javadoc.jar is too small')
+        }
+    }
+}
+
+// NOTE the sources/javadoc jars are attached directly to the MavenPublication
+// below; the legacy 'archives' configuration is deprecated (removed in Gradle 10)
+
+group = "$groupId"
+version = "$versionName"
+
+ext[SIGNING_KEY_ID] = ''
+ext[SIGNING_PASSWORD] = ''
+ext[SIGNING_SECRET_KEY_RING_FILE] = ''
+ext[OSSRH_USERNAME] = ''
+ext[OSSRH_PASSWORD] = ''
+ext[SONATYPE_STAGING_PROFILE_ID] = ''
+
+File localPropsFile = project.rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    Properties p = new Properties()
+    p.load(new FileInputStream(localPropsFile))
+    p.each { key, value ->
+        ext[key] = value
+    }
+} else {
+    ext[SIGNING_KEY_ID] = System.getenv('SIGNING_KEY_ID')
+    ext[SIGNING_PASSWORD] = System.getenv('SIGNING_PASSWORD')
+    ext[SIGNING_SECRET_KEY_RING_FILE] = System.getenv('SIGNING_SECRET_KEY_RING_FILE')
+    ext[OSSRH_USERNAME] = System.getenv('OSSRH_USERNAME')
+    ext[OSSRH_PASSWORD] = System.getenv('OSSRH_PASSWORD')
+    ext[SONATYPE_STAGING_PROFILE_ID] = System.getenv('SONATYPE_STAGING_PROFILE_ID')
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = "$groupId"
+                artifactId = "$artifactName"
+                version = "$versionName"
+
+                if (project.plugins.findPlugin("com.android.library")) {
+                    from components.release
+                } else {
+                    // for pure-Java projects
+                    artifact(layout.buildDirectory.file("libs/${project.name}-${version}.jar"))
+                }
+
+                artifact sourcesJar
+                artifact javadocJar
+
+                pom {
+                    name = "$artifactName"
+                    description = LIB_DESCRIPTION
+                    url = LIB_SITE
+
+                    licenses {
+                        license {
+                            name = LIB_LICENSE_NAME
+                            url = LIB_LICENSE_URL
+                        }
+                    }
+
+                    scm {
+                        connection = LIB_SCM_CONNECTION
+                        developerConnection = LIB_SCM_DEVELOPER_CONNECTION
+                        url = LIB_SCM_URL
+                    }
+
+                    developers {
+                        developer {
+                            id = LIB_DEVELOPER_ID
+                            name = LIB_DEVELOPER_NAME
+                            email = LIB_DEVELOPER_EMAIL
+                        }
+                    }
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'sonatype'
+                url = version.endsWith('-SNAPSHOT')
+                        ? 'https://central.sonatype.com/repository/maven-snapshots/'
+                        : 'https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/'
+
+                credentials {
+                    username = ossrhUsername
+                    password = ossrhPassword
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications
+}
+
+// MavenCentral repository doesn't accept signed Gradle Module Metadata for a SNAPSHOT
+tasks.withType(GenerateModuleMetadata) {
+    enabled = false
+}
+
+tasks.register('sonatypeSearchRepositores') {
+    doFirst {
+        sonatypeRuntimeData().namespaces.computeIfAbsent("$groupId") {
+            // noinspection GrDeprecatedAPIUsage
+            def connection = new URL('https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?state=open&ip=any').openConnection() as HttpURLConnection
+
+            try {
+                def bearer = Base64.encoder.encodeToString("$ossrhUsername:$ossrhPassword".bytes)
+                connection.setRequestProperty('Authorization', "Bearer $bearer")
+                def response = connection.getInputStream().text
+                sonatypeRuntimeData().responses.put(it, response)
+
+                logger.info("Received response: ${connection.getResponseCode()} ${connection.getResponseMessage()}, body: $response")
+
+                // noinspection UnnecessaryQualifiedReference
+                def parsed = new groovy.json.JsonSlurper().parseText(response)
+                if (parsed instanceof Map) {
+                    def repositories = parsed.get('repositories')
+                    if (repositories instanceof List) {
+                        return repositories.isEmpty()
+                    }
+                }
+            } finally {
+                connection.disconnect()
+            }
+
+            return null
+        }
+    }
+}
+
+tasks.register('sonatypeEnsureNamespaceIsEmpty') {
+    it.dependsOn(tasks.named('sonatypeSearchRepositores'))
+
+    doFirst {
+        if (rootProject.hasProperty('sonatypeSkipNamespaceCheck') && Boolean.parseBoolean(rootProject.property('sonatypeSkipNamespaceCheck'))) {
+            println('Skipped because of option \'sonatypeSkipNamespaceCheck\'')
+            return
+        }
+
+        def empty = sonatypeRuntimeData().namespaces.get("$groupId")
+
+        if (Boolean.TRUE != empty) {
+            def response = sonatypeRuntimeData().responses.get("$groupId")
+
+            println("Sonatype namespace $groupId is not empty: $response")
+            println("If you understand what you do and want to avoid this check, you can add a parameter -PsonatypeSkipNamespaceCheck=true")
+
+            throw new RuntimeException("Sonatype namespace $groupId is not empty")
+        }
+    }
+}
+
+tasks.register('sonatypeUploadDefaultRepository') {
+    sonatypeRuntimeData().upload.put(project.name, true)
+
+    it.dependsOn(tasks.named('sonatypeSearchRepositores'))
+
+    doFirst {
+        sonatypeRuntimeData().upload.put(project.name, false)
+        if (sonatypeRuntimeData().upload.any { it.value }) {
+            logger.info("Skip current project ${project.name}, because it is not last")
+            return
+        }
+
+        if (sonatypeRuntimeData().upload.isEmpty()) {
+            throw new RuntimeException("It seems that task has been called twice")
+        } else {
+            sonatypeRuntimeData().upload.clear()
+        }
+
+        def empty = sonatypeRuntimeData().namespaces.get("$groupId")
+        if (empty == null) {
+            throw new RuntimeException("Sonatype namespace $groupId has not be checked")
+        }
+
+        // noinspection GrDeprecatedAPIUsage
+        def connection = new URL("https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/$groupId").openConnection() as HttpURLConnection
+
+        try {
+            def bearer = Base64.encoder.encodeToString("$ossrhUsername:$ossrhPassword".bytes)
+            connection.setRequestMethod("POST")
+            connection.setRequestProperty('Authorization', "Bearer $bearer")
+
+            logger.info("Received response: ${connection.getResponseCode()} ${connection.getResponseMessage()}")
+
+            if (connection.getResponseCode() != 200) {
+                throw new RuntimeException("Uploading default repository of namespace $groupId has failed: ${connection.getResponseCode()} ${connection.getResponseMessage()}")
+            }
+
+            sonatypeRuntimeData().namespaces.remove("$groupId")
+            sonatypeRuntimeData().responses.remove("$groupId")
+
+            println('Complete the upload process on the Sonatype Publishing Portal: https://central.sonatype.com/publishing/deployments')
+            return
+        } finally {
+            connection.disconnect()
+        }
+    }
+}
+
+afterEvaluate {
+    if (!version.endsWith('-SNAPSHOT')) {
+        tasks.named('publishReleasePublicationToSonatypeRepository') {
+            it.dependsOn(tasks.named('sonatypeEnsureNamespaceIsEmpty'))
+            it.finalizedBy(tasks.named('sonatypeUploadDefaultRepository'))
+        }
+    }
+}
+
+class Patterns {
+    static def compile(String s) {
+        // noinspection UnnecessaryQualifiedReference
+        return java.util.regex.Pattern.compile(s)
+    }
+
+    static def exposeTag = compile('^\\s*\\* @expose (class|interface|enum|stub|signature|constant)\\s*$')
+    static def endsWithBracket = compile('^.*\\{\\s*(//.*)?$')
+    static def endsWithSemicolon = compile('^.*;\\s*(//.*)?$')
+    static def endsWithColonOrSemicolon = compile('^.*[,;]\\s*(//.*)?$')
+}
+
+def exposeSources(File srcDir, File dstDir) {
+    for (def srcChild : srcDir.listFiles()) {
+        def dstChild = new File(dstDir, srcChild.name)
+
+        if (srcChild.isDirectory()) {
+            exposeSources(srcChild, dstChild)
+        } else {
+            def buffer = new ArrayList<String>()
+            def output = new ArrayList<String>()
+
+            def state = 0
+            def indent = ''
+            def type = ''
+
+            for (def line : (srcChild.readLines())) {
+                switch (state) {
+                    case 0: { // wait for first javadoc open
+                        buffer.add(line)
+
+                        if (line.trim() == '/**') {
+                            state = 1
+                        }
+
+                        break
+                    }
+
+                    case 1: { // wait for javadoc expose tag
+                        def matcher = Patterns.exposeTag.matcher(line)
+                        if (matcher.matches()) {
+                            state = 2
+                            type = matcher.group(1)
+                        } else if (line.trim() == '*/') {
+                            state = 4
+
+                            buffer.clear()
+                        } else {
+                            buffer.add(line)
+                        }
+
+                        break
+                    }
+
+                    case 2: { // wait for javadoc close
+                        buffer.add(line)
+
+                        if (line.trim() == '*/') {
+                            state = 3
+                        }
+
+                        break
+                    }
+
+                    case 3: { // wait for bracket open or semicolon or colon
+                        buffer.add(line)
+
+                        def pattern
+
+                        if (type == 'signature') {
+                            pattern = Patterns.endsWithSemicolon
+                        } else if (type == 'class' || type == 'interface' || type == 'enum' || type == 'stub') {
+                            pattern = Patterns.endsWithBracket
+                        } else if (type == 'constant') {
+                            pattern = Patterns.endsWithColonOrSemicolon
+                        } else {
+                            throw new IllegalStateException(type)
+                        }
+
+                        if (line.matches(pattern)) {
+                            state = 4
+
+                            if (type == 'stub') {
+                                buffer.add("${indent}    throw new RuntimeException(\"Stub!\");")
+                                buffer.add("${indent}}")
+                                buffer.add('')
+                            } else if (type == 'signature' || type == 'constant') {
+                                buffer.add('')
+                            }
+
+                            output.addAll(buffer)
+                            buffer.clear()
+                            type = ''
+                            indent = ''
+                        }
+
+                        break
+                    }
+
+                    case 4: { // wait for next javadoc open
+                        if (line.trim() == '/**') {
+                            state = 1
+                            indent = line.substring(0, line.indexOf('/**'))
+
+                            buffer.add(line)
+                        } else {
+                            def index = line.indexOf('} // @expose')
+                            if (index >= 0) {
+                                output.add(line.substring(0, index + 1))
+                            }
+                        }
+
+                        break
+                    }
+
+                    default: throw new IllegalStateException()
+                }
+            }
+
+            if (output.size() > 0) {
+                dstChild.parentFile.mkdirs()
+                dstChild.withPrintWriter { writer ->
+                    output.forEach { line ->
+                        writer.println(line)
+                    }
+
+                    writer.println('}')
+                }
+            }
+        }
+    }
+}
+
+class SonatypeRuntimeData {
+    Map<String, Boolean> upload = new HashMap<>()
+    Map<String, Boolean> namespaces = new HashMap<>()
+    Map<String, String> responses = new HashMap<>()
+}
+
+SonatypeRuntimeData sonatypeRuntimeData() {
+    def value = rootProject.extensions.findByName('sonatype-runtime-data')
+
+    if (value == null) {
+        value = new SonatypeRuntimeData()
+
+        rootProject.extensions.add('sonatype-runtime-data', value)
+    }
+
+    return value
+}

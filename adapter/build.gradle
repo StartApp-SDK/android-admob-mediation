@@ -3,19 +3,25 @@ plugins {
 }
 
 android {
-    namespace 'com.startapp.mediation.admob'
+    namespace = 'com.startapp.mediation.admob'
 
-    compileSdk 36
+    compileSdk = 37
 
     defaultConfig {
-        minSdk 23
-        targetSdk 36
+        minSdk = 23
+        targetSdk = 37
 
+        aarMetadata {
+            minCompileSdk = 36
+        }
+    }
+
+    defaultConfig {
         buildConfigField 'String', 'VERSION_NAME', "\"$versionName\""
     }
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 }
 
@@ -24,4 +30,4 @@ dependencies {
     api 'com.startapp:inapp-sdk:[5.2.2,6)'
 }
 
-apply from: 'https://raw.githubusercontent.com/StartApp-SDK/sonatype-central-publish/refs/heads/main/sonatype-central-publish.gradle'
+apply from: "$rootDir/sonatype-central-publish.gradle"

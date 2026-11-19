@@ -1,8 +1,8 @@
 <resources>
-    <string name="appId">ca-app-pub-1713644718444084~3541044081</string>
-    <string name="interstitialId">ca-app-pub-1713644718444084/3020167898</string>
-    <string name="rewardedId">ca-app-pub-1713644718444084/8753594891</string>
-    <string name="bannerId">ca-app-pub-1713644718444084/9394004552</string>
-    <string name="mrecId">ca-app-pub-1713644718444084/5999686466</string>
-    <string name="nativeId">ca-app-pub-1713644718444084/6127431557</string>
+    <string name="appId">ca-app-pub-8106958183505772~2740959695</string>
+    <string name="interstitialId">ca-app-pub-8106958183505772/5353138600</string>
+    <string name="rewardedId">ca-app-pub-8106958183505772/6418808269</string>
+    <string name="bannerId">ca-app-pub-8106958183505772/7330941398</string>
+    <string name="mrecId">ca-app-pub-8106958183505772/9114796352</string>
+    <string name="nativeId">ca-app-pub-8106958183505772/3792644929</string>
 </resources>
