@@ -4,7 +4,36 @@ This library lets you serve ads to your apps from Start.io (StartApp) network vi
 
 ## Demo app
 
-The [demo app](/example) is fully workable. Change ad unit IDs in [ad_ids.xml](/example/src/main/res/values/ad_ids.xml), then build an app and use [Ad inspector][1] to make sure your integration is working correctly.
+The [demo app](/example) is fully workable. By default it shows Google test ads. To test your integration, put your App ID in [AndroidManifest.xml](/example/src/main/AndroidManifest.xml), put your ad unit IDs in `productionAdUnits()` and set `TEST_ADS` to `false` in [MainActivity.java](/example/src/main/java/com/startapp/mediation/admob/example/MainActivity.java). With `TEST_ADS = false`, the demo app shows only ads served by Start.io. Then build an app and use [Ad inspector][1] to make sure your integration is working correctly.
+
+## Compatibility report
+
+For each AdMob version, the demo app was checked with these ad formats:
+
+- Interstitial
+- Rewarded Video
+- Banner 320x50
+- Banner 300x250 (MREC)
+- Native
+
+AdMob versions:
+
+- 24.0.0
+- 24.1.0
+- 24.2.0
+- 24.3.0
+- 24.4.0
+- 24.5.0
+- 24.6.0
+- 24.7.0
+- 24.8.0
+- 24.9.0
+- 25.0.0
+- 25.1.0
+- 25.2.0
+- 25.3.0
+- 25.4.0
+- 25.5.0
 
 ## Integration steps
 
@@ -12,7 +41,7 @@ The [demo app](/example) is fully workable. Change ad unit IDs in [ad_ids.xml](/
 
 ```
 dependencies {
-    implementation 'io.start:admob-mediation:3.1+'
+    implementation 'io.start:admob-mediation:3.2+'
 }
 ```
 

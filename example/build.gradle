@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = 'com.startapp.mediation.admob.example'
 
-        minSdk = 23
+        minSdk = 24
         targetSdk = 37
 
         versionCode = 1
@@ -26,6 +26,6 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation project(':adapter')
 }

@@ -6,8 +6,7 @@
         android:label="AdMob - Start.io"
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.AppCompat.Light"
-        tools:ignore="MissingApplicationIcon"
-        tools:targetApi="n">
+        tools:ignore="MissingApplicationIcon">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -18,9 +17,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Google test App ID: ca-app-pub-3940256099942544~3347511713 -->
+        <!-- TODO replace with your AdMob App ID to test your mediation setup -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="@string/appId" />
+            android:value="ca-app-pub-8106958183505772~2740959695" />
 
     </application>
 

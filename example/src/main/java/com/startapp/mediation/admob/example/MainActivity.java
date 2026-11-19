@@ -4,6 +4,7 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -11,6 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.MutableLiveData;
 
@@ -23,6 +25,7 @@ import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.ResponseInfo;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.gms.ads.nativead.MediaView;
@@ -33,20 +36,40 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.startapp.mediation.admob.StartappAdapter;
 import com.startapp.sdk.adsbase.StartAppSDK;
 
+import java.util.Arrays;
 import java.util.List;
+
+import io.start.mediation.admob.StartIoAdapter;
 
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "AdMob_StartIo";
 
+    // NOTE change to false in order to test adapter in a real environment
+    private static final boolean TEST_ADS = true;
+
+    /**
+     * Mediation adapter class names of Start.io, as set in the AdMob custom event.
+     */
+    private static final List<String> ADAPTER_CLASSES = Arrays.asList(
+            StartIoAdapter.class.getName(),
+            StartappAdapter.class.getName()
+    );
+
+    enum AdState {
+        IDLE,
+        LOADING,
+        VISIBLE,
+    }
+
     private static final MutableLiveData<Boolean> initialized = new MutableLiveData<>(null);
-    private final MutableLiveData<InterstitialAd> interstitialLiveData = new MutableLiveData<>();
-    private final MutableLiveData<RewardedAd> rewardedLiveData = new MutableLiveData<>();
-    private final MutableLiveData<AdView> bannerLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> bannerVisible = new MutableLiveData<>(false);
-    private final MutableLiveData<AdView> mrecLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> mrecVisible = new MutableLiveData<>(false);
-    private final MutableLiveData<NativeAd> nativeLiveData = new MutableLiveData<>();
-    private final MutableLiveData<Boolean> nativeVisible = new MutableLiveData<>(false);
+
+    private final MutableLiveData<Pair<InterstitialAd, AdState>> interstitialLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Pair<RewardedAd, AdState>> rewardedLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Pair<AdView, AdState>> bannerLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Pair<AdView, AdState>> mrecLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Pair<NativeAd, AdState>> nativeLiveData = new MutableLiveData<>();
+
+    private AdUnits adUnits;
 
     private ViewGroup bannerContainer;
     private ViewGroup mrecContainer;
@@ -55,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        adUnits = TEST_ADS ? testAdUnits() : productionAdUnits();
 
         setTitle("AdMob " + MobileAds.getVersion() + " - Start.io " + StartAppSDK.getVersion());
 
@@ -91,59 +116,47 @@ public class MainActivity extends AppCompatActivity {
         showNative.setOnClickListener(this::showNative);
         hideNative.setOnClickListener(this::hideNative);
 
-        interstitialLiveData.observe(this, interstitialAd -> {
-            loadInterstitial.setEnabled(interstitialAd == null && isInitialized());
-            showInterstitial.setEnabled(interstitialAd != null);
+        interstitialLiveData.observe(this, pair -> {
+            loadInterstitial.setEnabled(isLoadButtonEnabled(pair));
+            showInterstitial.setEnabled(isShowButtonEnabled(pair));
         });
 
-        rewardedLiveData.observe(this, rewardedAd -> {
-            loadRewarded.setEnabled(rewardedAd == null && isInitialized());
-            showRewarded.setEnabled(rewardedAd != null);
+        rewardedLiveData.observe(this, pair -> {
+            loadRewarded.setEnabled(isLoadButtonEnabled(pair));
+            showRewarded.setEnabled(isShowButtonEnabled(pair));
         });
 
-        bannerLiveData.observe(this, adView -> {
-            loadBanner.setEnabled(adView == null && isInitialized());
-            showBanner.setEnabled(adView != null && !Boolean.TRUE.equals(bannerVisible.getValue()));
+        bannerLiveData.observe(this, pair -> {
+            loadBanner.setEnabled(isLoadButtonEnabled(pair));
+            showBanner.setEnabled(isShowButtonEnabled(pair));
+            hideBanner.setEnabled(isHideButtonVisible(pair));
+            bannerContainer.setVisibility(isHideButtonVisible(pair) ? View.VISIBLE : View.GONE);
         });
 
-        bannerVisible.observe(this, visible -> {
-            bannerContainer.setVisibility(visible ? View.VISIBLE : View.GONE);
-            showBanner.setEnabled(bannerLiveData.getValue() != null && !visible);
-            hideBanner.setEnabled(visible);
+        mrecLiveData.observe(this, pair -> {
+            loadMrec.setEnabled(isLoadButtonEnabled(pair));
+            showMrec.setEnabled(isShowButtonEnabled(pair));
+            hideMrec.setEnabled(isHideButtonVisible(pair));
+            mrecContainer.setVisibility(isHideButtonVisible(pair) ? View.VISIBLE : View.GONE);
         });
 
-        mrecLiveData.observe(this, adView -> {
-            loadMrec.setEnabled(adView == null && isInitialized());
-            showMrec.setEnabled(adView != null && !Boolean.TRUE.equals(mrecVisible.getValue()));
-        });
-
-        mrecVisible.observe(this, visible -> {
-            mrecContainer.setVisibility(visible ? View.VISIBLE : View.GONE);
-            showMrec.setEnabled(mrecLiveData.getValue() != null && !visible);
-            hideMrec.setEnabled(visible);
-        });
-
-        nativeLiveData.observe(this, nativeAd -> {
-            loadNative.setEnabled(nativeAd == null && isInitialized());
-            showNative.setEnabled(nativeAd != null && !Boolean.TRUE.equals(nativeVisible.getValue()));
-        });
-
-        nativeVisible.observe(this, visible -> {
-            nativeContainer.setVisibility(visible ? View.VISIBLE : View.GONE);
-            showNative.setEnabled(nativeLiveData.getValue() != null && !visible);
-            hideNative.setEnabled(visible);
+        nativeLiveData.observe(this, pair -> {
+            loadNative.setEnabled(isLoadButtonEnabled(pair));
+            showNative.setEnabled(isShowButtonEnabled(pair));
+            hideNative.setEnabled(isHideButtonVisible(pair));
+            nativeContainer.setVisibility(isHideButtonVisible(pair) ? View.VISIBLE : View.GONE);
         });
 
         initialized.observe(this, value -> {
             if (value == null) {
                 initialized.setValue(false);
 
-                MobileAds.initialize(this, status -> {
-                    initialized.setValue(true);
-
+                new Thread(() -> MobileAds.initialize(this, status -> {
                     // TODO remove this line in production
                     StartAppSDK.setTestAdsEnabled(true);
-                });
+
+                    initialized.postValue(true);
+                })).start();
             } else if (value) {
                 interstitialLiveData.setValue(null);
                 rewardedLiveData.setValue(null);
@@ -158,93 +171,133 @@ public class MainActivity extends AppCompatActivity {
         return Boolean.TRUE.equals(initialized.getValue());
     }
 
-    //region Banner
+    private static <T> boolean isLoadButtonEnabled(@Nullable Pair<T, AdState> pair) {
+        return (pair == null || pair.first == null && pair.second != AdState.LOADING) && isInitialized();
+    }
+
+    private static <T> boolean isShowButtonEnabled(@Nullable Pair<T, AdState> pair) {
+        return pair != null && pair.first != null && pair.second != AdState.VISIBLE;
+    }
+
+    private static <T> boolean isHideButtonVisible(@Nullable Pair<T, AdState> pair) {
+        return pair != null && pair.second == AdState.VISIBLE;
+    }
+
+    @Nullable
+    private static String adapterOf(@Nullable ResponseInfo responseInfo) {
+        return responseInfo != null ? responseInfo.getMediationAdapterClassName() : null;
+    }
+
+    private boolean isAllowedAd(@Nullable ResponseInfo responseInfo) {
+        if (TEST_ADS || ADAPTER_CLASSES.contains(adapterOf(responseInfo))) {
+            return true;
+        }
+
+        Toast.makeText(getApplicationContext(), "Non-Start.io production ad skipped", Toast.LENGTH_SHORT).show();
+        return false;
+    }
+
+    // region Banner & Medium Rectangle
     private void loadBanner(@NonNull View view) {
-        AdView adView = new AdView(this);
-        adView.setAdUnitId(getString(R.string.bannerId));
-        adView.setAdSize(AdSize.BANNER);
-        adView.setAdListener(new AdListener() {
-            @Override
-            public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                Log.e(LOG_TAG, "Banner: onAdFailedToLoad: " + error);
+        loadAdView(adUnits.bannerAdUnitId, AdSize.BANNER, bannerLiveData);
+    }
 
-                bannerLiveData.setValue(null);
-            }
-
-            @Override
-            public void onAdLoaded() {
-                bannerLiveData.setValue(adView);
-            }
-        });
-
-        adView.loadAd(new AdRequest.Builder().build());
+    private void loadMrec(@NonNull View view) {
+        loadAdView(adUnits.mrecAdUnitId, AdSize.MEDIUM_RECTANGLE, mrecLiveData);
     }
 
     private void showBanner(@NonNull View view) {
-        AdView adView = bannerLiveData.getValue();
-        if (adView != null) {
-            bannerContainer.removeAllViews();
-            bannerContainer.addView(adView, new ViewGroup.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+        showAdView(bannerLiveData, bannerContainer);
+    }
 
-            bannerVisible.setValue(true);
-        } else {
-            Toast.makeText(this, "Banner is not ready", Toast.LENGTH_SHORT).show();
-
-            bannerVisible.setValue(false);
-        }
+    private void showMrec(@NonNull View view) {
+        showAdView(mrecLiveData, mrecContainer);
     }
 
     private void hideBanner(@NonNull View view) {
-        bannerContainer.removeAllViews();
-        bannerLiveData.setValue(null);
-        bannerVisible.setValue(false);
+        hideAdView(bannerLiveData, bannerContainer);
     }
-    //endregion
 
-    //region Medium Rectangle
-    private void loadMrec(@NonNull View view) {
+    private void hideMrec(@NonNull View view) {
+        hideAdView(mrecLiveData, mrecContainer);
+    }
+
+    private void loadAdView(@NonNull String adUnitId, @NonNull AdSize adSize, @NonNull MutableLiveData<Pair<AdView, AdState>> liveData) {
+        liveData.setValue(new Pair<>(null, AdState.LOADING));
+
         AdView adView = new AdView(this);
-        adView.setAdUnitId(getString(R.string.mrecId));
-        adView.setAdSize(AdSize.MEDIUM_RECTANGLE);
+        adView.setAdUnitId(adUnitId);
+        adView.setAdSize(adSize);
         adView.setAdListener(new AdListener() {
             @Override
-            public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                Log.e(LOG_TAG, "Mrec: onAdFailedToLoad: " + error);
+            public void onAdLoaded() {
+                Log.v(LOG_TAG, "loadAdView: onAdLoaded: " + adSize + ", adapter: " + adapterOf(adView.getResponseInfo()));
 
-                mrecLiveData.setValue(null);
+                Pair<AdView, AdState> pair = liveData.getValue();
+                if (pair == null || pair.second == AdState.LOADING) {
+                    if (isAllowedAd(adView.getResponseInfo())) {
+                        liveData.setValue(new Pair<>(adView, AdState.IDLE));
+                    } else {
+                        liveData.setValue(null);
+                        destroyAdView(adView);
+                    }
+                } else if (pair.first == adView && !isAllowedAd(adView.getResponseInfo())) {
+                    // An auto-refresh of a loaded or visible ad brought an ad of another network
+                    liveData.setValue(null);
+                    destroyAdView(adView);
+                }
             }
 
             @Override
-            public void onAdLoaded() {
-                mrecLiveData.setValue(adView);
+            public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                Log.w(LOG_TAG, "loadAdView: onAdFailedToLoad: " + adSize + ", " + error);
+
+                // A failed auto-refresh of a visible ad keeps the current ad on screen
+                Pair<AdView, AdState> pair = liveData.getValue();
+                if (pair == null || pair.second == AdState.LOADING) {
+                    liveData.setValue(null);
+                    destroyAdView(adView);
+                }
             }
         });
 
         adView.loadAd(new AdRequest.Builder().build());
     }
 
-    private void showMrec(@NonNull View view) {
-        AdView adView = mrecLiveData.getValue();
-        if (adView != null) {
-            mrecContainer.removeAllViews();
-            mrecContainer.addView(adView, new ViewGroup.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
-
-            mrecVisible.setValue(true);
+    private void showAdView(@NonNull MutableLiveData<Pair<AdView, AdState>> liveData, @NonNull ViewGroup container) {
+        Pair<AdView, AdState> pair = liveData.getValue();
+        if (pair != null && pair.first != null) {
+            container.removeAllViews();
+            container.addView(pair.first, new ViewGroup.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+            liveData.setValue(new Pair<>(pair.first, AdState.VISIBLE));
         } else {
-            Toast.makeText(this, "Mrec is not ready", Toast.LENGTH_SHORT).show();
-
-            mrecVisible.setValue(false);
+            Toast.makeText(this, "AdView is not ready", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void hideMrec(@NonNull View view) {
-        mrecContainer.removeAllViews();
-        mrecLiveData.setValue(null);
-        mrecVisible.setValue(false);
-    }
-    //endregion
+    private void hideAdView(@NonNull MutableLiveData<Pair<AdView, AdState>> liveData, @NonNull ViewGroup container) {
+        Pair<AdView, AdState> pair = liveData.getValue();
+        if (pair != null && pair.first != null) {
+            destroyAdView(pair.first);
+        }
 
-    //region Interstitial
+        container.removeAllViews();
+        liveData.setValue(new Pair<>(null, AdState.IDLE));
+    }
+
+    /**
+     * Stops auto-refresh and releases the ad view, removing it from the screen if it is shown.
+     */
+    private static void destroyAdView(@NonNull AdView adView) {
+        if (adView.getParent() instanceof ViewGroup) {
+            ((ViewGroup) adView.getParent()).removeView(adView);
+        }
+
+        adView.destroy();
+    }
+    // endregion
+
+    // region Interstitial
 
     /**
      * you can as well write to admob network custom event interface optional parameter
@@ -253,6 +306,8 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void loadInterstitial(@NonNull View view) {
+        interstitialLiveData.setValue(new Pair<>(null, AdState.LOADING));
+
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("interstitialTagFromAdRequest")
@@ -265,29 +320,28 @@ public class MainActivity extends AppCompatActivity {
                 .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build();
 
-        InterstitialAd.load(this, getString(R.string.interstitialId), request, new InterstitialAdLoadCallback() {
+        InterstitialAd.load(this, adUnits.interstitialAdUnitId, request, new InterstitialAdLoadCallback() {
             @Override
             public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
+                Log.v(LOG_TAG, "loadInterstitial: onAdLoaded, adapter: " + adapterOf(interstitialAd.getResponseInfo()));
+
                 interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                     @Override
-                    public void onAdShowedFullScreenContent() {
-                        interstitialLiveData.setValue(null);
-                    }
-
-                    @Override
                     public void onAdFailedToShowFullScreenContent(@NonNull AdError error) {
-                        Log.e(LOG_TAG, "Interstitial: onAdFailedToShowFullScreenContent: " + error);
-
-                        interstitialLiveData.setValue(null);
+                        Log.w(LOG_TAG, "loadInterstitial: onAdFailedToShowFullScreenContent: " + error);
                     }
                 });
 
-                interstitialLiveData.setValue(interstitialAd);
+                if (isAllowedAd(interstitialAd.getResponseInfo())) {
+                    interstitialLiveData.setValue(new Pair<>(interstitialAd, AdState.IDLE));
+                } else {
+                    interstitialLiveData.setValue(null);
+                }
             }
 
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                Log.e(LOG_TAG, "Interstitial: onAdFailedToLoad: " + error);
+                Log.w(LOG_TAG, "loadInterstitial: onAdFailedToLoad: " + error);
 
                 interstitialLiveData.setValue(null);
             }
@@ -295,16 +349,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showInterstitial(@NonNull View view) {
-        InterstitialAd interstitialAd = interstitialLiveData.getValue();
-        if (interstitialAd != null) {
-            interstitialAd.show(this);
+        Pair<InterstitialAd, AdState> pair = interstitialLiveData.getValue();
+        if (pair != null && pair.first != null) {
+            interstitialLiveData.setValue(null);
+
+            pair.first.show(this);
         } else {
             Toast.makeText(this, "Interstitial is not ready", Toast.LENGTH_SHORT).show();
         }
     }
-    //endregion
+    // endregion
 
-    //region Rewarded
+    // region Rewarded
 
     /**
      * you can as well write to admob network custom event interface optional parameter
@@ -313,6 +369,8 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void loadRewarded(@NonNull View view) {
+        rewardedLiveData.setValue(new Pair<>(null, AdState.LOADING));
+
         // optionally you can set additional parameters for Startapp interstitial
         final Bundle extras = new StartappAdapter.Extras.Builder()
                 .setAdTag("rewardedTagFromAdRequest")
@@ -324,29 +382,28 @@ public class MainActivity extends AppCompatActivity {
                 .addNetworkExtrasBundle(StartappAdapter.class, extras)
                 .build();
 
-        RewardedAd.load(this, getString(R.string.rewardedId), adRequest, new RewardedAdLoadCallback() {
+        RewardedAd.load(this, adUnits.rewardedAdUnitId, adRequest, new RewardedAdLoadCallback() {
             @Override
             public void onAdLoaded(@NonNull RewardedAd rewardedAd) {
+                Log.v(LOG_TAG, "loadRewarded: onAdLoaded, adapter: " + adapterOf(rewardedAd.getResponseInfo()));
+
                 rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
                     @Override
-                    public void onAdShowedFullScreenContent() {
-                        rewardedLiveData.setValue(null);
-                    }
-
-                    @Override
                     public void onAdFailedToShowFullScreenContent(@NonNull AdError error) {
-                        Log.e(LOG_TAG, "Rewarded: onAdFailedToShowFullScreenContent: " + error);
-
-                        rewardedLiveData.setValue(null);
+                        Log.w(LOG_TAG, "loadRewarded: onAdFailedToShowFullScreenContent: " + error);
                     }
                 });
 
-                rewardedLiveData.setValue(rewardedAd);
+                if (isAllowedAd(rewardedAd.getResponseInfo())) {
+                    rewardedLiveData.setValue(new Pair<>(rewardedAd, AdState.IDLE));
+                } else {
+                    rewardedLiveData.setValue(null);
+                }
             }
 
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                Log.e(LOG_TAG, "Rewarded: onAdFailedToLoad: " + error);
+                Log.w(LOG_TAG, "loadRewarded: onAdFailedToLoad: " + error);
 
                 rewardedLiveData.setValue(null);
             }
@@ -354,9 +411,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showRewarded(@NonNull View view) {
-        RewardedAd rewardedAd = rewardedLiveData.getValue();
-        if (rewardedAd != null) {
-            rewardedAd.show(this, rewardItem -> {
+        Pair<RewardedAd, AdState> pair = rewardedLiveData.getValue();
+        if (pair != null && pair.first != null) {
+            rewardedLiveData.setValue(null);
+
+            pair.first.show(this, rewardItem -> {
                 Log.i(LOG_TAG, "User earned a reward: " + rewardItem.getType() + ", amount=" + rewardItem.getAmount());
 
                 Toast.makeText(this, "User earned a reward", Toast.LENGTH_SHORT).show();
@@ -365,9 +424,9 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Rewarded is not ready", Toast.LENGTH_SHORT).show();
         }
     }
-    //endregion
+    // endregion
 
-    //region Native
+    // region Native
 
     /**
      * you can as well write to admob network custom event interface optional parameter
@@ -376,12 +435,23 @@ public class MainActivity extends AppCompatActivity {
      * each value from the admob interface overrides corresponding value from the extras map
      */
     public void loadNative(@NonNull View view) {
-        new AdLoader.Builder(this, getString(R.string.nativeId))
-                .forNativeAd(nativeLiveData::setValue)
+        nativeLiveData.setValue(new Pair<>(null, AdState.LOADING));
+
+        new AdLoader.Builder(this, adUnits.nativeAdUnitId)
+                .forNativeAd(nativeAd -> {
+                    Log.v(LOG_TAG, "loadNative: onNativeAdLoaded, adapter: " + adapterOf(nativeAd.getResponseInfo()));
+
+                    if (isAllowedAd(nativeAd.getResponseInfo())) {
+                        nativeLiveData.setValue(new Pair<>(nativeAd, AdState.IDLE));
+                    } else {
+                        nativeLiveData.setValue(null);
+                        nativeAd.destroy();
+                    }
+                })
                 .withAdListener(new AdListener() {
                     @Override
                     public void onAdFailedToLoad(@NonNull LoadAdError error) {
-                        Log.e(LOG_TAG, "Native: onAdFailedToLoad: " + error);
+                        Log.w(LOG_TAG, "loadNative: onAdFailedToLoad: " + error);
 
                         nativeLiveData.setValue(null);
                     }
@@ -391,13 +461,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showNative(@NonNull View view) {
-        NativeAd nativeAd = nativeLiveData.getValue();
-        if (nativeAd == null) {
+        Pair<NativeAd, AdState> pair = nativeLiveData.getValue();
+        if (pair == null || pair.first == null) {
             Toast.makeText(this, "Native is not ready", Toast.LENGTH_SHORT).show();
 
-            nativeVisible.setValue(false);
+            nativeLiveData.setValue(null);
             return;
         }
+
+        NativeAd nativeAd = pair.first;
 
         NativeAdView nativeView = (NativeAdView) getLayoutInflater().inflate(R.layout.native_ad_unified, nativeContainer, false);
         TextView headlineTextView = nativeView.findViewById(R.id.headline_text_view);
@@ -460,13 +532,73 @@ public class MainActivity extends AppCompatActivity {
 
         nativeContainer.removeAllViews();
         nativeContainer.addView(nativeView);
-        nativeVisible.setValue(true);
+        nativeLiveData.setValue(new Pair<>(nativeAd, AdState.VISIBLE));
     }
 
     private void hideNative(@NonNull View view) {
+        Pair<NativeAd, AdState> pair = nativeLiveData.getValue();
+        if (pair != null && pair.first != null) {
+            pair.first.destroy();
+        }
+
         nativeContainer.removeAllViews();
         nativeLiveData.setValue(null);
-        nativeVisible.setValue(false);
     }
-    //endregion
+    // endregion
+
+    // region Ad units
+    @NonNull
+    private static AdUnits testAdUnits() {
+        return new AdUnits(
+                "ca-app-pub-3940256099942544/1033173712",
+                "ca-app-pub-3940256099942544/5224354917",
+                "ca-app-pub-3940256099942544/6300978111",
+                "ca-app-pub-3940256099942544/6300978111",
+                "ca-app-pub-3940256099942544/2247696110"
+        );
+    }
+
+    /* TODO put your production Ad Units here to test the integration */
+    @NonNull
+    private static AdUnits productionAdUnits() {
+        return new AdUnits(
+                "ca-app-pub-8106958183505772/5353138600",
+                "ca-app-pub-8106958183505772/6418808269",
+                "ca-app-pub-8106958183505772/7330941398",
+                "ca-app-pub-8106958183505772/9114796352",
+                "ca-app-pub-8106958183505772/3792644929"
+        );
+    }
+
+    static class AdUnits {
+        @NonNull
+        final String interstitialAdUnitId;
+
+        @NonNull
+        final String rewardedAdUnitId;
+
+        @NonNull
+        final String bannerAdUnitId;
+
+        @NonNull
+        final String mrecAdUnitId;
+
+        @NonNull
+        final String nativeAdUnitId;
+
+        AdUnits(
+                @NonNull String interstitialAdUnitId,
+                @NonNull String rewardedAdUnitId,
+                @NonNull String bannerAdUnitId,
+                @NonNull String mrecAdUnitId,
+                @NonNull String nativeAdUnitId
+        ) {
+            this.interstitialAdUnitId = interstitialAdUnitId;
+            this.rewardedAdUnitId = rewardedAdUnitId;
+            this.bannerAdUnitId = bannerAdUnitId;
+            this.mrecAdUnitId = mrecAdUnitId;
+            this.nativeAdUnitId = nativeAdUnitId;
+        }
+    }
+    // endregion
 }

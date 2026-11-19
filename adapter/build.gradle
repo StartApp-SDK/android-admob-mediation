@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 23
+        minSdk = 24
         targetSdk = 37
 
         aarMetadata {
@@ -26,8 +26,8 @@ android {
 }
 
 dependencies {
-    api 'com.google.android.gms:play-services-ads:[24,25)'
-    api 'com.startapp:inapp-sdk:[5.2.2,6)'
+    api 'com.google.android.gms:play-services-ads:[24,26)'
+    api 'com.startapp:inapp-sdk:[5.5.1,6)'
 }
 
 apply from: "$rootDir/sonatype-central-publish.gradle"
