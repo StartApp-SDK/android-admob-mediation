@@ -169,7 +169,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        // Release the ads of this screen, they are not reused after it is destroyed
+        // Release the ads of this screen, they are not reused after it is destroyed.
+        // An ad that is still loading is released by its load callback, see isDestroyed().
         destroyAdView(bannerLiveData);
         destroyAdView(mrecLiveData);
         destroyNativeAd(nativeLiveData.getValue());
@@ -249,6 +250,11 @@ public class MainActivity extends AppCompatActivity {
             public void onAdLoaded() {
                 Log.v(LOG_TAG, "loadAdView: onAdLoaded: " + adSize + ", adapter: " + adapterOf(adView.getResponseInfo()));
 
+                if (isDestroyed()) {
+                    destroyAdView(adView);
+                    return;
+                }
+
                 Pair<AdView, AdState> pair = liveData.getValue();
                 if (pair == null || pair.second == AdState.LOADING) {
                     if (isAllowedAd(adView.getResponseInfo())) {
@@ -267,6 +273,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError error) {
                 Log.w(LOG_TAG, "loadAdView: onAdFailedToLoad: " + adSize + ", " + error);
+
+                if (isDestroyed()) {
+                    destroyAdView(adView);
+                    return;
+                }
 
                 // A failed auto-refresh of a visible ad keeps the current ad on screen
                 Pair<AdView, AdState> pair = liveData.getValue();
@@ -463,6 +474,11 @@ public class MainActivity extends AppCompatActivity {
         new AdLoader.Builder(this, adUnits.nativeAdUnitId)
                 .forNativeAd(nativeAd -> {
                     Log.v(LOG_TAG, "loadNative: onNativeAdLoaded, adapter: " + adapterOf(nativeAd.getResponseInfo()));
+
+                    if (isDestroyed()) {
+                        nativeAd.destroy();
+                        return;
+                    }
 
                     if (isAllowedAd(nativeAd.getResponseInfo())) {
                         nativeLiveData.setValue(new Pair<>(nativeAd, AdState.IDLE));
