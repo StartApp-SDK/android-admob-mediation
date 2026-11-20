@@ -167,6 +167,22 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onDestroy() {
+        // Release the ads of this screen, they are not reused after it is destroyed
+        destroyAdView(bannerLiveData);
+        destroyAdView(mrecLiveData);
+        destroyNativeAd(nativeLiveData.getValue());
+
+        super.onDestroy();
+    }
+
+    private static void destroyNativeAd(@Nullable Pair<NativeAd, AdState> pair) {
+        if (pair != null && pair.first != null) {
+            pair.first.destroy();
+        }
+    }
+
     private static boolean isInitialized() {
         return Boolean.TRUE.equals(initialized.getValue());
     }
@@ -276,19 +292,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideAdView(@NonNull MutableLiveData<Pair<AdView, AdState>> liveData, @NonNull ViewGroup container) {
+        destroyAdView(liveData);
+
+        container.removeAllViews();
+        liveData.setValue(new Pair<>(null, AdState.IDLE));
+    }
+
+    private static void destroyAdView(@NonNull MutableLiveData<Pair<AdView, AdState>> liveData) {
         Pair<AdView, AdState> pair = liveData.getValue();
         if (pair != null && pair.first != null) {
             destroyAdView(pair.first);
         }
-
-        container.removeAllViews();
-        liveData.setValue(new Pair<>(null, AdState.IDLE));
     }
 
     /**
      * Stops auto-refresh and releases the ad view, removing it from the screen if it is shown.
      */
     private static void destroyAdView(@NonNull AdView adView) {
+        adView.setAdListener(new AdListener() {
+        });
+
         if (adView.getParent() instanceof ViewGroup) {
             ((ViewGroup) adView.getParent()).removeView(adView);
         }
@@ -536,10 +559,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideNative(@NonNull View view) {
-        Pair<NativeAd, AdState> pair = nativeLiveData.getValue();
-        if (pair != null && pair.first != null) {
-            pair.first.destroy();
-        }
+        destroyNativeAd(nativeLiveData.getValue());
 
         nativeContainer.removeAllViews();
         nativeLiveData.setValue(null);
